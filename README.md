@@ -1,26 +1,26 @@
 # fastapi-crud-generator
 
-Генератор CRUD-маршрутов для FastAPI. Позволяет быстро подключить стандартные эндпоинты (get one, get many, create, update, delete) к любому ORM через адаптер.
+CRUD route generator for FastAPI. Quickly adds standard endpoints (get one, get many, create, update, delete) to any ORM via an adapter.
 
-## Установка
+## Installation
 
 ```bash
-# из GitHub
+# from GitHub
 pip install git+https://github.com/mozgsml/fastapi_crud_generator.git
 
-# с поддержкой SQLModel
+# with SQLModel support
 pip install "fastapi-crud-generator[sqlmodel] @ git+https://github.com/mozgsml/fastapi_crud_generator.git"
 
-# через uv
+# via uv
 uv add git+https://github.com/mozgsml/fastapi_crud_generator
 ```
 
-## Быстрый старт
+## Quick start
 
 ```python
 from fastapi import FastAPI
 from fastapi_crud_generator import CRUDCollection
-from fastapi_crud_generator.orm.sqlmodel import SQLModelAdapter  # если используется SQLModel
+from fastapi_crud_generator.orm.sqlmodel import SQLModelAdapter  # if using SQLModel
 
 app = FastAPI()
 
@@ -34,21 +34,21 @@ crud = CRUDCollection(
 app.include_router(crud.get_router(), prefix="/items", tags=["items"])
 ```
 
-## Параметры CRUDCollection
+## CRUDCollection parameters
 
-| Параметр | Описание |
+| Parameter | Description |
 |---|---|
-| `orm_adapter` | Адаптер ORM (обязательный) |
-| `public_schema` | Pydantic-схема для чтения |
-| `public_list_schema` | Схема для списка (по умолчанию `PaginatorPage[public_schema]`) |
-| `create_schema` | Схема для создания |
-| `update_schema` | Схема для обновления |
-| `pk_fields` | Pydantic-модель с полями первичного ключа (по умолчанию `Id_UUID`) |
-| `filter_schema` | Схема фильтрации (генерируется автоматически из `public_schema`) |
-| `sort_schema` | Схема сортировки (генерируется автоматически) |
-| `include_schema` | Схема для включения связанных данных |
+| `orm_adapter` | ORM adapter (required) |
+| `public_schema` | Pydantic schema for reading |
+| `public_list_schema` | Schema for list responses (defaults to `PaginatorPage[public_schema]`) |
+| `create_schema` | Schema for creation |
+| `update_schema` | Schema for updates |
+| `pk_fields` | Pydantic model with primary key fields (defaults to `Id_UUID`) |
+| `filter_schema` | Filter schema (auto-generated from `public_schema`) |
+| `sort_schema` | Sort schema (auto-generated) |
+| `include_schema` | Schema for including related data |
 
-### Отключение отдельных маршрутов
+### Disabling individual routes
 
 ```python
 crud = CRUDCollection(
@@ -59,21 +59,21 @@ crud = CRUDCollection(
 )
 ```
 
-### Зависимости FastAPI
+### FastAPI dependencies
 
 ```python
 crud = CRUDCollection(
     orm_adapter=...,
     public_schema=...,
-    dependencies=[Depends(require_auth)],        # для всех маршрутов
-    get_many_dependencies=[Depends(require_admin)],  # только для GET /
+    dependencies=[Depends(require_auth)],            # for all routes
+    get_many_dependencies=[Depends(require_admin)],  # GET / only
     create_dependencies=[Depends(require_admin)],
 )
 ```
 
-## Свой ORM-адаптер
+## Custom ORM adapter
 
-Унаследуй `ORMAdapterBase` и реализуй методы:
+Inherit from `ORMAdapterBase` and implement the required methods:
 
 ```python
 from fastapi_crud_generator.orm.base import ORMAdapterBase

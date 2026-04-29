@@ -1,5 +1,6 @@
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
+from tkinter import NO
 from typing import Annotated, Literal
 
 from fastapi import Depends, HTTPException, Query
@@ -44,11 +45,11 @@ class SQLModelPaginator(PaginatorBase):
 
 class SQLModelAdapter(ORMAdapterBase):
     get_session: Callable[[], AsyncGenerator[AsyncSession, None, None]] = None
-    model: SQLModel = None
+    model: SQLModel | None = None
 
     def __init__(self, *,
         get_session: Callable[[], AsyncGenerator[AsyncSession, None, None]] = None,
-        model: SQLModel = None,
+        model: SQLModel | None = None,
     ):
         assert SQLMODEL_INSTALLED, "sqlmodel is not installed"
         self.get_session = get_session or self.__class__.get_session
