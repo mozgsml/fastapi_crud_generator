@@ -63,13 +63,25 @@ class SQLModelAdapter(ORMAdapterBase):
             yield s
 
     def generate_include_schema(self) -> BaseModel:
-        fields_names = self.model.__sqlmodel_relationships__.keys()
-        literal_type = Literal.__getitem__(tuple(fields_names))
-        result = create_model(
-            f"{self.model.__name__}Include",
-            include=(Annotated[list[literal_type] | None, Query()], None),
+        """Build a query schema for selecting which relationships to include.
+
+        Creates a Pydantic model with an ``include`` field typed as
+        ``Literal[<relationship names>]``, so FastAPI validates that only
+        existing relationship names are accepted as query parameters.
+        """
+        fields_names = tuple(
+            self.model.__sqlmodel_relationships__.keys()
         )
-        return result
+        if not fields_names:
+            return create_model(f"{self.model.__name__}Include")
+        literal_type = Literal.__getitem__(fields_names)
+        return create_model(
+            f"{self.model.__name__}Include",
+            include=(
+                Annotated[list[literal_type] | None, Query()],
+                None,
+            ),
+        )
 
     def get_base_list_queryset(self) -> Select:
         return select(self.model)
@@ -120,7 +132,7 @@ class SQLModelAdapter(ORMAdapterBase):
 
         return statement
 
-    async def get_many_endpoint(self,
+    async def get_many_handler(self,
         paginator: Annotated[SQLModelPaginator, Depends(SQLModelPaginator)],
         filter_data: Annotated[BaseModel, FilterSchemaDependency],
         sort_data: Annotated[BaseModel, SortSchemaDependency],
@@ -140,7 +152,7 @@ class SQLModelAdapter(ORMAdapterBase):
     def get_base_single_queryset(self):
         return select(self.model)
 
-    async def get_one_endpoint(
+    async def get_one_handler(
             self,
             pk_field_values: Annotated[BaseModel, PKFieldsDependency],
     ):
@@ -155,7 +167,7 @@ class SQLModelAdapter(ORMAdapterBase):
 
         return result
 
-    async def create_one_endpoint(
+    async def create_one_handler(
         self,
         create_data: Annotated[BaseModel, CreateSchemaDependency],
     ):
@@ -166,10 +178,10 @@ class SQLModelAdapter(ORMAdapterBase):
             await session.refresh(item)
         return item
 
-    async def create_many_endpoint(self):
+    async def create_many_handler(self):
         pass
 
-    async def update_one_endpoint(
+    async def update_one_handler(
             self,
             pk_field_values: Annotated[BaseModel, PKFieldsDependency],
             update_data: Annotated[BaseModel, UpdateSchemaDependency],
@@ -186,10 +198,10 @@ class SQLModelAdapter(ORMAdapterBase):
             await session.commit()
 
 
-    async def update_many_endpoint(self):
+    async def update_many_handler(self):
         pass
 
-    async def delete_one_endpoint(
+    async def delete_one_handler(
             self,
             pk_field_values: Annotated[BaseModel, PKFieldsDependency],
         ):

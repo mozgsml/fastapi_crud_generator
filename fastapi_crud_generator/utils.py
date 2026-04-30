@@ -8,14 +8,19 @@ acepted_tupes = (int, float, str, bool, Enum)
 
 def create_filter_model(
     public_model: BaseModel,
-    accepted_types: list[type] | tuple[type] = acepted_tupes
+    accepted_types: list[type] | tuple[type] = acepted_tupes,
 ) -> BaseModel:
+    """Build a Pydantic filter model from the public model's scalar fields.
+
+    Includes only fields whose type is one of accepted_types (int, float,
+    str, bool, Enum by default). All fields become optional query params.
+    """
     accepted_types = tuple(accepted_types)
     fields = {}
     for name, info in public_model.model_fields.items():
         annotation = Optional[info.annotation]
         args = get_args(annotation)
-        if (isinstance(args[0], type) 
+        if (isinstance(args[0], type)
             and issubclass(args[0], accepted_types)
             and args[1] is type(None)
             and len(args) == 2
@@ -27,8 +32,14 @@ def create_filter_model(
 
 def create_sort_schema(
     public_model: BaseModel,
-    accepted_types: list[type] | tuple[type] = acepted_tupes
+    accepted_types: list[type] | tuple[type] = acepted_tupes,
 ) -> BaseModel:
+    """Build a Pydantic sort schema from the public model's scalar fields.
+
+    For each accepted field generates three Literal values: ``field``,
+    ``field:asc``, ``field:desc``. The result is a model with a single
+    optional ``sort`` query parameter accepting a list of those values.
+    """
     accepted_types = tuple(accepted_types)
     fields_names = []
     for name, info in public_model.model_fields.items():

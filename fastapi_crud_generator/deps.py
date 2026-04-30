@@ -1,22 +1,22 @@
 import inspect
 from abc import ABC, abstractmethod
 from inspect import Parameter, Signature
-from typing import Annotated, List, Type
+from typing import Annotated
 
 from fastapi import Depends, Request
 from pydantic import BaseModel
 
 
 class ReplaceSignatureDependency(ABC):
-    '''
-    The signature of the parameter in the endpoint of ORMAdapter
-    will be replaced with the signature of the corresponding 
-    Pydentic model in CRUDGenerator
-    '''
+    """The signature of the parameter in the endpoint of ORMAdapter.
 
-    override: Type[BaseModel] = None
+    Will be replaced with the signature of the corresponding
+    Pydantic model in CRUDGenerator.
+    """
 
-    def __init__(self, override: Type[BaseModel]):
+    override: type[BaseModel] = None
+
+    def __init__(self, override: type[BaseModel]):
         assert isinstance(override, type), (
             f"Expected a BaseModel subclass but got "
             f"{type(override).__name__} instead"
@@ -28,50 +28,50 @@ class ReplaceSignatureDependency(ABC):
         self.override = override
 
     @abstractmethod
-    def get_new_params(self, original: Parameter) -> List[Parameter]:
+    def get_new_params(self, original: Parameter) -> list[Parameter]:
         pass
 
     def pack_to_originals(self, original_name: str, **kwargs):
         return kwargs
 
 class ReplaceSingleSignatureDependency(ReplaceSignatureDependency):
-    def get_new_params(self, original: Parameter) -> List[Parameter]:
-        # original.annotation = self.override
-        """
-        Replaces the annotation of the original parameter with the override.
+    def get_new_params(self, original: Parameter) -> list[Parameter]:
+        """Replace the annotation of the original parameter with the override.
 
         Args:
-            original (Parameter): The original parameter whose annotation 
-            is to be replaced.
+            original (Parameter): The original parameter whose annotation
+                is to be replaced.
 
         Returns:
-            List[Parameter]: A list containing a single parameter with 
-            the updated annotation.
-        """
+            list[Parameter]: A list containing a single parameter with
+                the updated annotation.
 
+        """
         return [inspect.Parameter(
                 name=original.name,
                 kind=original.kind,
-                annotation=self.override
-        ),]
+                annotation=self.override,
+        )]
 
 class RelpaceSubDependency(ReplaceSingleSignatureDependency):
-    def get_new_params(self, original: Parameter) -> List[Parameter]:
-        """
-        Replaces the original parameter with a new one that injects a pydantic
-        model from query parameters. The pydantic model is defined in self.override.
+    def get_new_params(self, original: Parameter) -> list[Parameter]:
+        """Replace the original parameter with a Pydantic model sub-dependency.
+
+        The new parameter injects a Pydantic model from query parameters;
+        the model is defined in self.override.
 
         Args:
             original (Parameter): The original parameter of the endpoint.
 
         Returns:
-            List[Parameter]: A list with one subdepandency parameter. 
+            list[Parameter]: A list with one subdependency parameter.
+
         """
         new_params: list[inspect.Parameter]= [inspect.Parameter(
             name='request',
             kind=Parameter.POSITIONAL_OR_KEYWORD,
             annotation=Request,
-        ), ]
+        ) ]
         for field_name, field in self.override.model_fields.items():
             new_params.append(inspect.Parameter(
                 name=field_name,
@@ -94,31 +94,30 @@ class RelpaceSubDependency(ReplaceSingleSignatureDependency):
         return [inspect.Parameter(
                 name=original.name,
                 kind=original.kind,
-                annotation=Annotated[self.override, Depends(dependency)]
-        ),]
+                annotation=Annotated[self.override, Depends(dependency)],
+        )]
 
 class ReplaceWithParamsListDependency(ReplaceSignatureDependency):
-    def get_new_params(self, original: Parameter) -> List[Parameter]:
-        # cast(BaseModel, self.override)
-        """
-        Generates a list of new parameters by replacing the original parameter 
-        with parameters derived from the fields of a Pydantic model specified 
-        in self.override.
+    def get_new_params(self, original: Parameter) -> list[Parameter]:
+        """Generate a list of new parameters from the fields of a Pydantic model.
+
+        Replaces the original parameter with parameters derived from the fields
+        of the model specified in self.override.
 
         Args:
             original (Parameter): The original parameter to be replaced.
 
         Returns:
-            List[Parameter]: A list of new parameters corresponding to the
-            fields of the Pydantic model.
-        """
+            list[Parameter]: A list of new parameters corresponding to the
+                fields of the Pydantic model.
 
+        """
         new_parameters = []
         for name, field_info in self.override.model_fields.items():
             new_param = inspect.Parameter(
                 name=name,
                 kind=Parameter.POSITIONAL_OR_KEYWORD,
-                annotation=field_info.annotation
+                annotation=field_info.annotation,
             )
             new_parameters.append(new_param)
         return new_parameters
@@ -133,25 +132,25 @@ class ReplaceWithParamsListDependency(ReplaceSignatureDependency):
 
 
 class CreateSchemaDependency(ReplaceSingleSignatureDependency):
-    '''Will be replaced with create_schema'''
+    """Will be replaced with create_schema."""
 
 class UpdateSchemaDependency(ReplaceSingleSignatureDependency):
-    '''Will be replaced with update_schema'''
+    """Will be replaced with update_schema."""
 
 class PublicSchemaDependency(ReplaceSingleSignatureDependency):
-    '''Will be replaced with public_schema'''
+    """Will be replaced with public_schema."""
 
 class PublicListSchemaDependency(ReplaceSingleSignatureDependency):
-    '''Will be replaced with public_list_schema'''
+    """Will be replaced with public_list_schema."""
 
 class FilterSchemaDependency(RelpaceSubDependency):
-    '''Will be replaced with filter_schema'''
+    """Will be replaced with filter_schema."""
 
 class SortSchemaDependency(RelpaceSubDependency):
-    '''Will be replaced with sort_schema'''
+    """Will be replaced with sort_schema."""
 
 class IncludeSchemaDependency(RelpaceSubDependency):
-    '''Will be replaced with include_schema'''
+    """Will be replaced with include_schema."""
 
 class PKFieldsDependency(ReplaceWithParamsListDependency):
-    '''Will be replaced with pk_fields'''
+    """Will be replaced with pk_fields."""

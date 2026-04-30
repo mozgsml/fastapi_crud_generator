@@ -60,7 +60,7 @@ class CRUDCollectionBase(ABC):
     dependency_overrides: dict[
         type[ReplaceSignatureDependency],
         ReplaceSignatureDependency,
-    ] = {}
+    ] | None = None
 
     dependencies: list[Depends] | None = None
     get_one_dependencies: list[Depends] | None = None
@@ -75,7 +75,7 @@ class CRUDCollectionBase(ABC):
     disable_update: bool = False
     disable_delete: bool = False
 
-    router_kwargs: dict = {}
+    router_kwargs: dict | None = None
 
 
     def __init__(
@@ -105,6 +105,11 @@ class CRUDCollectionBase(ABC):
         disable_create: bool | None = None,
         disable_update: bool | None = None,
         disable_delete: bool | None = None,
+
+        dependency_overrides: dict[
+            type[ReplaceSignatureDependency],
+            ReplaceSignatureDependency,
+        ] | None = None,
 
         **router_kwargs: dict,
 
@@ -158,7 +163,14 @@ class CRUDCollectionBase(ABC):
         self.disable_delete = (disable_delete if disable_delete is not None
                                else self.disable_delete)
 
-        self.router_kwargs = router_kwargs or self.router_kwargs
+        self.dependency_overrides = (
+            dependency_overrides if dependency_overrides is not None
+            else (self.dependency_overrides or {})
+        )
+        self.router_kwargs = (
+            router_kwargs if router_kwargs
+            else dict(self.router_kwargs or {})
+        )
         self.router_kwargs["dependencies"] = self.dependencies
 
 
@@ -263,7 +275,7 @@ class CRUDCollectionBase(ABC):
 
     def add_get_many_route(self, router: APIRouter):
         endpoint = self.override_dependencies(
-            self.orm_adapter.get_many_endpoint,
+            self.orm_adapter.get_many_handler,
         )
         if self.public_schema and not self.disable_get_many:
             router.add_api_route(
@@ -274,7 +286,7 @@ class CRUDCollectionBase(ABC):
 
 
     def add_get_one_route(self, router: APIRouter):
-        endpoint = self.override_dependencies(self.orm_adapter.get_one_endpoint)
+        endpoint = self.override_dependencies(self.orm_adapter.get_one_handler)
         if self.public_schema and not self.disable_get_one:
             router.add_api_route(
                 self.id_path,
@@ -285,7 +297,7 @@ class CRUDCollectionBase(ABC):
 
     def add_create_one_route(self, router: APIRouter):
         endpoint = self.override_dependencies(
-            self.orm_adapter.create_one_endpoint,
+            self.orm_adapter.create_one_handler,
         )
         if self.create_schema and not self.disable_create:
             router.add_api_route(
@@ -297,7 +309,7 @@ class CRUDCollectionBase(ABC):
 
     def add_update_one_route(self, router: APIRouter):
         endpoint = self.override_dependencies(
-            self.orm_adapter.update_one_endpoint,
+            self.orm_adapter.update_one_handler,
         )
         if self.update_schema and not self.disable_update:
             router.add_api_route(
@@ -310,7 +322,7 @@ class CRUDCollectionBase(ABC):
 
     def add_delete_one_route(self, router: APIRouter):
         endpoint = self.override_dependencies(
-            self.orm_adapter.delete_one_endpoint,
+            self.orm_adapter.delete_one_handler,
         )
         if  not self.disable_delete:
             router.add_api_route(
