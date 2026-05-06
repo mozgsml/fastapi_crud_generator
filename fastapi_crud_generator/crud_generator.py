@@ -51,6 +51,7 @@ class CRUDCollectionBase(ABC):
     create_schema: BaseModel = None
     create_out_schema = Any
 
+    # TODO add pk schema generation
     pk_fields: BaseModel = Id_UUID
 
     base_fields: set[str] | None = None

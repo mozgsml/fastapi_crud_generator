@@ -1,11 +1,12 @@
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
-from tkinter import NO
 from typing import Annotated, Literal
 
 from fastapi import Depends, HTTPException, Query
 from pydantic import BaseModel, create_model
+from pydantic_core import PydanticUndefined
 
+from fastapi_crud_generator.config import CRUDConfigDict
 from fastapi_crud_generator.deps import (
     CreateSchemaDependency,
     FilterSchemaDependency,
@@ -17,11 +18,13 @@ from fastapi_crud_generator.deps import (
 from fastapi_crud_generator.orm.base import ORMAdapterBase
 from fastapi_crud_generator.paginator import PaginatorBase
 from fastapi_crud_generator.schemas import PaginatorPage
+from fastapi_crud_generator.utils import slice_model
 
 try:
     from sqlalchemy import Select, desc, func
     from sqlmodel import SQLModel, select, update
     from sqlmodel.ext.asyncio.session import AsyncSession
+    from sqlmodel.main import FieldInfoMetadata
 except ImportError:
     SQLMODEL_INSTALLED = False
 else:
@@ -35,7 +38,9 @@ class SQLModelPaginator(PaginatorBase):
         ) -> PaginatorPage:
         # pylint: disable=not-callable
         return {
-            'count': await session.scalar(select(func.count()).select_from(query.subquery())),
+            'count': await session.scalar(
+                select(func.count()).select_from(query.subquery())
+            ),
             'page': self.page,
             'per_page': self.per_page,
             'data':  (await session.exec(
@@ -48,7 +53,9 @@ class SQLModelAdapter(ORMAdapterBase):
     model: SQLModel | None = None
 
     def __init__(self, *,
-        get_session: Callable[[], AsyncGenerator[AsyncSession, None, None]] = None,
+        get_session: Callable[
+            [], AsyncGenerator[AsyncSession, None, None]
+        ] = None,
         model: SQLModel | None = None,
     ):
         assert SQLMODEL_INSTALLED, "sqlmodel is not installed"
@@ -61,6 +68,116 @@ class SQLModelAdapter(ORMAdapterBase):
     async def session(self) -> AsyncGenerator[AsyncSession, None, None]:
         async for s in self.get_session():
             yield s
+
+    def get_crud_config(self) -> CRUDConfigDict:
+        return getattr(self.model, 'crud_config', CRUDConfigDict())
+
+    def get_pk_field_names(self) -> set[str]:
+        return {col.name for col in self.model.__table__.primary_key.columns}
+
+    def get_server_generated_field_names(self) -> set[str]:
+        """Return field names backed by a column with server_default."""
+        result = set()
+        for name, field_info in self.model.model_fields.items():
+            for meta in field_info.metadata:
+                if isinstance(meta, FieldInfoMetadata):
+                    sa_column = meta.sa_column
+                    if (sa_column is not PydanticUndefined
+                            and sa_column is not None
+                            and sa_column.server_default is not None):
+                        result.add(name)
+        return result
+
+    def get_default_public_fields(self) -> set[str]:
+        """Return all model field names that are not explicitly excluded."""
+        return {
+            name
+            for name, field_info in self.model.model_fields.items()
+            if field_info.exclude is not True
+        }
+
+    def get_default_create_fields(self) -> set[str]:
+        """Return field names except PKs and server-generated fields."""
+        auto_fields = (
+            self.get_pk_field_names() | self.get_server_generated_field_names()
+        )
+        return {
+            name
+            for name in self.model.model_fields
+            if name not in auto_fields
+        }
+
+    def generate_public_schema(
+        self,
+        fields: set[str] | None = None,
+        base_fields: set[str] | None = None,
+    ) -> type[BaseModel]:
+        crud_config = self.get_crud_config()
+        resolved_public = fields or (crud_config.public_fields or None)
+        resolved_base = base_fields or (crud_config.base_fields or None)
+
+        if resolved_public is None and resolved_base is None:
+            effective_fields = (
+                self.get_default_public_fields() | self.get_pk_field_names()
+            )
+        else:
+            effective_fields = (
+                (resolved_public or set()) | (resolved_base or set())
+            )
+
+        return slice_model(
+            f"{self.model.__name__}Public",
+            self.model,
+            fields=effective_fields,
+            exclude_metadata=(FieldInfoMetadata,),
+        )
+
+    def generate_create_schema(
+        self,
+        fields: set[str] | None = None,
+        base_fields: set[str] | None = None,
+    ) -> type[BaseModel]:
+        crud_config = self.get_crud_config()
+        resolved_create = fields or (crud_config.create_fields or None)
+        resolved_base = base_fields or (crud_config.base_fields or None)
+
+        if resolved_create is None and resolved_base is None:
+            effective_fields = self.get_default_create_fields()
+        else:
+            effective_fields = (
+                (resolved_create or set()) | (resolved_base or set())
+            )
+
+        return slice_model(
+            f"{self.model.__name__}Create",
+            self.model,
+            fields=effective_fields,
+            exclude_metadata=(FieldInfoMetadata,),
+        )
+
+    def generate_update_schema(
+        self,
+        fields: set[str] | None = None,
+        base_fields: set[str] | None = None,
+    ) -> type[BaseModel]:
+        crud_config = self.get_crud_config()
+        resolved_update = fields or (crud_config.update_fields or None)
+        resolved_base = base_fields or (crud_config.base_fields or None)
+
+        if resolved_update is None and resolved_base is None:
+            effective_fields = self.get_default_create_fields()
+        else:
+            effective_fields = (
+                (resolved_update or set()) | (resolved_base or set())
+            )
+
+        return slice_model(
+            f"{self.model.__name__}Update",
+            self.model,
+            fields=effective_fields,
+            optional=True,
+            exclude_metadata=(FieldInfoMetadata,),
+        )
 
     def generate_include_schema(self) -> BaseModel:
         """Build a query schema for selecting which relationships to include.

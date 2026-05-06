@@ -208,9 +208,6 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
-dev = [
-    { name = "pytest" },
-]
 sqlmodel = [
     { name = "sqlmodel" },
 ]
@@ -218,19 +215,24 @@ sqlmodel = [
 [package.dev-dependencies]
 dev = [
     { name = "ipykernel" },
+    { name = "pytest" },
+    { name = "sqlmodel" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "fastapi" },
     { name = "pydantic" },
-    { name = "pytest", marker = "extra == 'dev'" },
     { name = "sqlmodel", marker = "extra == 'sqlmodel'" },
 ]
-provides-extras = ["sqlmodel", "dev"]
+provides-extras = ["sqlmodel"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "ipykernel", specifier = ">=7.2.0" }]
+dev = [
+    { name = "ipykernel", specifier = ">=7.2.0" },
+    { name = "pytest" },
+    { name = "sqlmodel" },
+]
 
 [[package]]
 name = "greenlet"
