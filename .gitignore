@@ -28,3 +28,7 @@ htmlcov/
 .vscode/
 .idea/
 *.swp
+
+# Jupyter
+jupyter/
+*.ipynb
