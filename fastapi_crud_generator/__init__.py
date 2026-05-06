@@ -1,3 +1,4 @@
+from fastapi_crud_generator.config import CRUDConfigDict
 from fastapi_crud_generator.crud_generator import (
     CRUDCollection,
     CRUDCollectionBase,

@@ -21,6 +21,7 @@ from fastapi_crud_generator.deps import (
     SortSchemaDependency,
     UpdateSchemaDependency,
 )
+from fastapi_crud_generator.config import CRUDConfigDict
 from fastapi_crud_generator.orm.base import ORMAdapterBase
 from fastapi_crud_generator.schemas import PaginatorPage
 from fastapi_crud_generator.utils import create_filter_model, create_sort_schema
@@ -51,6 +52,11 @@ class CRUDCollectionBase(ABC):
     create_out_schema = Any
 
     pk_fields: BaseModel = Id_UUID
+
+    base_fields: set[str] | None = None
+    public_fields: set[str] | None = None
+    create_fields: set[str] | None = None
+    update_fields: set[str] | None = None
 
     filter_schema: BaseModel = None
     sort_schema: BaseModel = None
@@ -87,6 +93,11 @@ class CRUDCollectionBase(ABC):
         update_out_schema: BaseModel | None = None,
         create_schema: BaseModel | None = None,
         create_out_schema: BaseModel | None = None,
+        base_fields: set[str] | None = None,
+        public_fields: set[str] | None = None,
+        create_fields: set[str] | None = None,
+        update_fields: set[str] | None = None,
+
         filter_schema: BaseModel | None = None,
         sort_schema: BaseModel | None = None,
         include_schema: BaseModel | None = None,
@@ -117,10 +128,33 @@ class CRUDCollectionBase(ABC):
         self.orm_adapter = orm_adapter if orm_adapter else self.orm_adapter
         self.verify_orm_adapter()
 
-        self.public_schema = public_schema or self.public_schema
-        self.update_schema = update_schema or self.update_schema
+        self.base_fields = base_fields or self.base_fields
+        self.public_fields = public_fields or self.public_fields
+        self.create_fields = create_fields or self.create_fields
+        self.update_fields = update_fields or self.update_fields
+
+        self.public_schema = (
+            public_schema
+            or self.public_schema
+            or self.orm_adapter.generate_public_schema(
+                self.public_fields, self.base_fields,
+            )
+        )
+        self.create_schema = (
+            create_schema
+            or self.create_schema
+            or self.orm_adapter.generate_create_schema(
+                self.create_fields, self.base_fields,
+            )
+        )
+        self.update_schema = (
+            update_schema
+            or self.update_schema
+            or self.orm_adapter.generate_update_schema(
+                self.update_fields, self.base_fields,
+            )
+        )
         self.update_out_schema = update_out_schema or self.update_out_schema
-        self.create_schema = create_schema or self.create_schema
         self.create_out_schema = create_out_schema or self.create_out_schema
         self.public_list_schema = (
             public_list_schema or

@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "fastapi-crud-generator"
 version = "0.1.0"
 description = "CRUD route generator for FastAPI"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "fastapi",
     "pydantic",
@@ -18,3 +18,8 @@ dev = ["pytest"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["fastapi_crud_generator"]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.2.0",
+]
