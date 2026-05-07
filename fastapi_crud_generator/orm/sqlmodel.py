@@ -49,6 +49,19 @@ class SQLModelPaginator(PaginatorBase):
 
 
 class SQLModelAdapter(ORMAdapterBase):
+    """ORM adapter for SQLModel with async SQLAlchemy sessions.
+
+    Implements schema generation by introspecting SQLModel metadata:
+    primary keys via ``__table__.primary_key``, server-generated fields
+    via ``server_default``, and output-only fields via ``exclude=True``.
+    ORM-specific ``FieldInfoMetadata`` is stripped from all generated schemas
+    so the resulting Pydantic models are clean of SQLAlchemy internals.
+
+    Args:
+        get_session: Async generator that yields an ``AsyncSession``.
+        model: The SQLModel table class to operate on.
+    """
+
     get_session: Callable[[], AsyncGenerator[AsyncSession, None, None]] = None
     model: SQLModel | None = None
 

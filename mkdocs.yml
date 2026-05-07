@@ -1,0 +1,33 @@
+site_name: fastapi-crud-generator
+site_description: CRUD route generator for FastAPI
+
+theme:
+  name: material
+  features:
+    - navigation.indexes
+
+markdown_extensions:
+  - toc:
+      toc_depth: 3
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_source: false
+            inherited_members: true
+            heading_level: 2
+            show_root_heading: true
+            show_root_full_path: false
+          extensions:
+            - griffe_inherited_docstrings
+
+nav:
+  - Home: index.md
+  - Schema Generation: schema-generation.md
+  - API Reference: api-reference.md
+
+docs_dir: docs
