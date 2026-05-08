@@ -21,7 +21,6 @@ from fastapi_crud_generator.deps import (
     SortSchemaDependency,
     UpdateSchemaDependency,
 )
-from fastapi_crud_generator.config import CRUDConfigDict
 from fastapi_crud_generator.orm.base import ORMAdapterBase
 from fastapi_crud_generator.schemas import PaginatorPage
 from fastapi_crud_generator.utils import create_filter_model, create_sort_schema
