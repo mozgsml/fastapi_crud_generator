@@ -2,15 +2,26 @@ from abc import ABC, abstractmethod
 
 from pydantic import BaseModel
 
+from fastapi_crud_generator.paginator import PaginatorBase
+from fastapi_crud_generator.schemas import PaginatorPage
+
 
 class ORMAdapterBase(ABC):
     """Abstract base class for ORM adapters.
 
     An adapter bridges a specific ORM and ``CRUDCollection`` by implementing
-    schema generation and request handler methods. Each ORM has its own
+    schema generation and pure data-access methods. Each ORM has its own
     adapter subclass (e.g. ``SQLModelAdapter``) that translates the generic
     interface into ORM-specific queries and schema introspection.
+
+    HTTP concerns (routing, status codes, dependency injection) live in
+    ``CRUDCollection``, not here.
     """
+
+    @property
+    @abstractmethod
+    def paginator_class(self) -> type:
+        """ORM-specific paginator class used by get_many."""
 
     @abstractmethod
     def generate_public_schema(
@@ -38,6 +49,7 @@ class ORMAdapterBase(ABC):
 
         Returns:
             A Pydantic model class containing only the resolved fields.
+
         """
 
     @abstractmethod
@@ -70,6 +82,7 @@ class ORMAdapterBase(ABC):
 
         Returns:
             A Pydantic model class containing only the resolved fields.
+
         """
 
     @abstractmethod
@@ -92,6 +105,7 @@ class ORMAdapterBase(ABC):
 
         Returns:
             A Pydantic model class where every field is optional.
+
         """
 
     @abstractmethod
@@ -104,43 +118,31 @@ class ORMAdapterBase(ABC):
         """
 
     @abstractmethod
-    async def get_many_handler(self):
-        """Handle GET / — return a paginated, filtered, sorted list.
-
-        Applies filtering, sorting, and relationship inclusion to the base
-        queryset, then paginates the result.
-        """
+    async def get_one(self, pk_values: BaseModel) -> object | None:
+        """Return a single object by primary key, or None if not found."""
 
     @abstractmethod
-    async def get_one_handler(self):
-        """Handle GET /{pk} — return a single object by primary key.
-
-        Raises 404 if no object with the given primary key exists.
-        """
-
-    @abstractmethod
-    async def create_one_handler(self):
-        """Handle POST / — persist a new object and return it."""
-
-    @abstractmethod
-    async def create_many_handler(self):
-        """Handle POST /bulk — persist multiple objects at once."""
+    async def get_many(
+        self,
+        filter_data: BaseModel,
+        sort_data: BaseModel,
+        include_data: BaseModel,
+        paginator: PaginatorBase,
+    ) -> PaginatorPage:
+        """Return a paginated, filtered, sorted list."""
 
     @abstractmethod
-    async def update_one_handler(self):
-        """Handle PATCH /{pk} — partially update an existing object.
-
-        Only fields present in the request payload are updated.
-        Raises 404 if no object with the given primary key exists.
-        """
+    async def create_one(self, data: BaseModel) -> object:
+        """Persist a new object and return it."""
 
     @abstractmethod
-    async def update_many_handler(self):
-        """Handle PATCH /bulk — partially update multiple objects at once."""
+    async def update_one(
+        self,
+        pk_values: BaseModel,
+        data: BaseModel,
+    ) -> None:
+        """Update an existing object by primary key."""
 
     @abstractmethod
-    async def delete_one_handler(self):
-        """Handle DELETE /{pk} — delete an object by primary key.
-
-        Returns the deleted object. Raises 404 if it does not exist.
-        """
+    async def delete_one(self, pk_values: BaseModel) -> object | None:
+        """Delete an object by primary key and return it, or None."""

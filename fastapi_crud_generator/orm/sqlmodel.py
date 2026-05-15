@@ -2,19 +2,11 @@ from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 from typing import Annotated, Literal
 
-from fastapi import Depends, HTTPException, Query
+from fastapi import Query
 from pydantic import BaseModel, create_model
 from pydantic_core import PydanticUndefined
 
 from fastapi_crud_generator.config import CRUDConfigDict
-from fastapi_crud_generator.deps import (
-    CreateSchemaDependency,
-    FilterSchemaDependency,
-    IncludeSchemaDependency,
-    PKFieldsDependency,
-    SortSchemaDependency,
-    UpdateSchemaDependency,
-)
 from fastapi_crud_generator.orm.base import ORMAdapterBase
 from fastapi_crud_generator.paginator import PaginatorBase
 from fastapi_crud_generator.schemas import PaginatorPage
@@ -33,7 +25,7 @@ else:
 
 class SQLModelPaginator(PaginatorBase):
     async def paginate(
-            self, session:AsyncSession,
+            self, session: AsyncSession,
             query: Select,
         ) -> PaginatorPage:
         # pylint: disable=not-callable
@@ -64,6 +56,7 @@ class SQLModelAdapter(ORMAdapterBase):
 
     get_session: Callable[[], AsyncGenerator[AsyncSession, None, None]] = None
     model: SQLModel | None = None
+    paginator_class = SQLModelPaginator
 
     def __init__(self, *,
         get_session: Callable[
@@ -231,7 +224,7 @@ class SQLModelAdapter(ORMAdapterBase):
         statement: Select,
         sort_data: BaseModel,
     ) -> Select:
-        assert len(sort_data.model_fields) == 1 , (
+        assert len(sort_data.model_fields) == 1, (
             "Only one sort argument is supported")
         sort_dict = sort_data.model_dump(exclude_unset=True)
 
@@ -259,95 +252,67 @@ class SQLModelAdapter(ORMAdapterBase):
         statement: Select,
         include_data: BaseModel,
     ) -> Select:
-
         return statement
 
-    async def get_many_handler(self,
-        paginator: Annotated[SQLModelPaginator, Depends(SQLModelPaginator)],
-        filter_data: Annotated[BaseModel, FilterSchemaDependency],
-        sort_data: Annotated[BaseModel, SortSchemaDependency],
-        include_data: Annotated[BaseModel, IncludeSchemaDependency],
-    ):
+    def get_base_single_queryset(self) -> Select:
+        return select(self.model)
+
+    async def get_one(self, pk_values: BaseModel) -> SQLModel | None:
+        """Return a single object by primary key, or None if not found."""
+        statement = self.get_base_single_queryset()
+        for key, value in pk_values.model_dump().items():
+            statement = statement.where(getattr(self.model, key) == value)
+        async with self.session() as session:
+            return (await session.exec(statement)).first()
+
+    async def get_many(
+        self,
+        filter_data: BaseModel,
+        sort_data: BaseModel,
+        include_data: BaseModel,
+        paginator: SQLModelPaginator,
+    ) -> PaginatorPage:
+        """Return a paginated, filtered, sorted list."""
         statement = self.get_base_list_queryset()
         statement = self.apply_queryset_filter(statement, filter_data)
         statement = self.apply_queryset_sort(statement, sort_data)
         statement = self.include_related(statement, include_data)
         async with self.session() as session:
-            result = await paginator.paginate(
-                session,
-                statement,
-            )
-        return result
+            return await paginator.paginate(session, statement)
 
-    def get_base_single_queryset(self):
-        return select(self.model)
-
-    async def get_one_handler(
-            self,
-            pk_field_values: Annotated[BaseModel, PKFieldsDependency],
-            include_data: Annotated[BaseModel, IncludeSchemaDependency],
-    ):
-        statement = self.get_base_single_queryset()
-        for key, value in pk_field_values.model_dump().items():
-            statement = statement.where(getattr(self.model, key) == value)
-
-        statement = self.include_related(statement, include_data)
-        async with self.session() as session:
-            result = (await session.exec(statement)).first()
-
-        if not result:
-            raise HTTPException(status_code=404, detail="Not found")
-
-        return result
-
-    async def create_one_handler(
-        self,
-        create_data: Annotated[BaseModel, CreateSchemaDependency],
-    ):
-        item = self.model.model_validate(create_data)
+    async def create_one(self, data: BaseModel) -> SQLModel:
+        """Persist a new object and return it."""
+        item = self.model.model_validate(data)
         async with self.session() as session:
             session.add(item)
             await session.commit()
             await session.refresh(item)
         return item
 
-    async def create_many_handler(self):
-        pass
-
-    async def update_one_handler(
-            self,
-            pk_field_values: Annotated[BaseModel, PKFieldsDependency],
-            update_data: Annotated[BaseModel, UpdateSchemaDependency],
-        ):
-        new_values = update_data.model_dump(exclude_unset=True)
+    async def update_one(
+        self,
+        pk_values: BaseModel,
+        data: BaseModel,
+    ) -> None:
+        """Update an existing object by primary key."""
+        new_values = data.model_dump(exclude_unset=True)
         statement = update(self.model)
-        for key, value in pk_field_values.model_dump().items():
+        for key, value in pk_values.model_dump().items():
             statement = statement.where(getattr(self.model, key) == value)
-
         statement = statement.values(**new_values)
-
         async with self.session() as session:
             await session.exec(statement)
             await session.commit()
 
-
-    async def update_many_handler(self):
-        pass
-
-    async def delete_one_handler(
-            self,
-            pk_field_values: Annotated[BaseModel, PKFieldsDependency],
-        ):
-        statement = select(self.model)
-        for key, value in pk_field_values.model_dump().items():
+    async def delete_one(self, pk_values: BaseModel) -> SQLModel | None:
+        """Delete an object by primary key and return it, or None."""
+        statement = self.get_base_single_queryset()
+        for key, value in pk_values.model_dump().items():
             statement = statement.where(getattr(self.model, key) == value)
         async with self.session() as session:
             result = (await session.exec(statement)).first()
-
-            if not result:
-                raise HTTPException(status_code=404, detail="Not found")
-
+            if result is None:
+                return None
             await session.delete(result)
             await session.commit()
-
         return result

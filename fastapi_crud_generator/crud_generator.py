@@ -4,9 +4,9 @@ import uuid
 from abc import ABC
 from collections.abc import Callable
 from functools import wraps
-from typing import Any, get_type_hints
+from typing import Annotated, Any, get_type_hints
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.routing import APIRoute
 from pydantic import BaseModel
 
@@ -15,6 +15,7 @@ from fastapi_crud_generator.deps import (
     FilterSchemaDependency,
     IncludeSchemaDependency,
     PKFieldsDependency,
+    PaginatorDependency,
     PublicListSchemaDependency,
     PublicSchemaDependency,
     ReplaceSignatureDependency,
@@ -22,6 +23,7 @@ from fastapi_crud_generator.deps import (
     SortSchemaDependency,
     UpdateSchemaDependency,
 )
+from fastapi_crud_generator.paginator import PaginatorBase
 from fastapi_crud_generator.orm.base import ORMAdapterBase
 from fastapi_crud_generator.schemas import PaginatorPage
 from fastapi_crud_generator.utils import create_filter_model, create_sort_schema
@@ -230,6 +232,9 @@ class CRUDCollectionBase(ABC):
             IncludeSchemaDependency: IncludeSchemaDependency(
                 self.include_schema),
             PKFieldsDependency: PKFieldsDependency(self.pk_fields),
+            PaginatorDependency: PaginatorDependency(
+                self.orm_adapter.paginator_class,
+            ),
         }
         for key, val in self.dependency_overrides.items():
             defaults[key] = (
@@ -300,6 +305,59 @@ class CRUDCollectionBase(ABC):
 
         return wrapper
 
+    async def get_one_handler(
+        self,
+        pk_field_values: Annotated[BaseModel, PKFieldsDependency],
+    ) -> object:
+        """Handle GET /{pk} — return a single object or call get_one_not_found."""
+        result = await self.orm_adapter.get_one(pk_field_values)
+        if result is None:
+            return await self.get_one_not_found(pk_field_values)
+        return result
+
+    async def get_one_not_found(
+        self, _pk_field_values: BaseModel,
+    ) -> object:
+        """Raise 404 by default; override to customise not-found behavior."""
+        raise HTTPException(status_code=404, detail="Not found")
+
+    async def get_many_handler(
+        self,
+        paginator: Annotated[PaginatorBase, PaginatorDependency],
+        filter_data: Annotated[BaseModel, FilterSchemaDependency],
+        sort_data: Annotated[BaseModel, SortSchemaDependency],
+        include_data: Annotated[BaseModel, IncludeSchemaDependency],
+    ) -> object:
+        """Handle GET / — return a paginated, filtered, sorted list."""
+        return await self.orm_adapter.get_many(
+            filter_data, sort_data, include_data, paginator,
+        )
+
+    async def create_one_handler(
+        self,
+        create_data: Annotated[BaseModel, CreateSchemaDependency],
+    ) -> object:
+        """Handle POST / — persist a new object and return it."""
+        return await self.orm_adapter.create_one(create_data)
+
+    async def update_one_handler(
+        self,
+        pk_field_values: Annotated[BaseModel, PKFieldsDependency],
+        update_data: Annotated[BaseModel, UpdateSchemaDependency],
+    ) -> None:
+        """Handle PATCH /{pk} — partially update an existing object."""
+        await self.orm_adapter.update_one(pk_field_values, update_data)
+
+    async def delete_one_handler(
+        self,
+        pk_field_values: Annotated[BaseModel, PKFieldsDependency],
+    ) -> object:
+        """Handle DELETE /{pk} — delete an object by primary key."""
+        result = await self.orm_adapter.delete_one(pk_field_values)
+        if result is None:
+            raise HTTPException(status_code=404, detail="Not found")
+        return result
+
     def generate_unique_id(self, route: APIRoute) -> str:
         operation_id = f"{route.name}{route.path_format}"
         operation_id = re.sub(r"\W", "_", operation_id)
@@ -319,62 +377,47 @@ class CRUDCollectionBase(ABC):
     # get_one_dependencies, create_dependencies, update_dependencies,
     # delete_dependencies); currently stored but never applied.
     def add_get_many_route(self, router: APIRouter):
-        endpoint = self.override_dependencies(
-            self.orm_adapter.get_many_handler,
-        )
         if self.public_schema and not self.disable_get_many:
             router.add_api_route(
                 "",
-                endpoint,
-                response_model = self.public_list_schema,
+                self.override_dependencies(self.get_many_handler),
+                response_model=self.public_list_schema,
             )
 
-
     def add_get_one_route(self, router: APIRouter):
-        endpoint = self.override_dependencies(self.orm_adapter.get_one_handler)
         if self.public_schema and not self.disable_get_one:
             router.add_api_route(
                 self.id_path,
-                endpoint,
-                response_model = self.public_schema,
+                self.override_dependencies(self.get_one_handler),
+                response_model=self.public_schema,
                 generate_unique_id_function=self.generate_unique_id,
             )
 
     def add_create_one_route(self, router: APIRouter):
-        endpoint = self.override_dependencies(
-            self.orm_adapter.create_one_handler,
-        )
         if self.create_schema and not self.disable_create:
             router.add_api_route(
                 "",
-                endpoint,
+                self.override_dependencies(self.create_one_handler),
                 methods=["POST"],
-                response_model = self.create_out_schema,
+                response_model=self.create_out_schema,
             )
 
     def add_update_one_route(self, router: APIRouter):
-        endpoint = self.override_dependencies(
-            self.orm_adapter.update_one_handler,
-        )
         if self.update_schema and not self.disable_update:
             router.add_api_route(
                 self.id_path,
-                endpoint,
+                self.override_dependencies(self.update_one_handler),
                 methods=["PATCH"],
-                response_model = self.update_out_schema,
+                response_model=self.update_out_schema,
             )
 
-
     def add_delete_one_route(self, router: APIRouter):
-        endpoint = self.override_dependencies(
-            self.orm_adapter.delete_one_handler,
-        )
-        if  not self.disable_delete:
+        if not self.disable_delete:
             router.add_api_route(
                 self.id_path,
-                endpoint,
+                self.override_dependencies(self.delete_one_handler),
                 methods=["DELETE"],
-                response_model = self.public_schema,
+                response_model=self.public_schema,
             )
 
     def get_router(self, **router_kwargs):

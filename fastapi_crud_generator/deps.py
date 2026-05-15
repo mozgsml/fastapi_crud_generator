@@ -168,3 +168,11 @@ class IncludeSchemaDependency(ReplaceSubDependency):
 
 class PKFieldsDependency(ReplaceWithParamsListDependency):
     """Will be replaced with pk_fields."""
+
+class PaginatorDependency(ReplaceWithAnnotationDependency):
+    """Will be replaced with the ORM-specific paginator."""
+
+    def __init__(self, paginator_class: type) -> None:
+        super().__init__(
+            Annotated[paginator_class, Depends(paginator_class)]
+        )
