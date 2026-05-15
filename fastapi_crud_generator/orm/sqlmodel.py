@@ -285,10 +285,13 @@ class SQLModelAdapter(ORMAdapterBase):
     async def get_one_handler(
             self,
             pk_field_values: Annotated[BaseModel, PKFieldsDependency],
+            include_data: Annotated[BaseModel, IncludeSchemaDependency],
     ):
         statement = self.get_base_single_queryset()
         for key, value in pk_field_values.model_dump().items():
             statement = statement.where(getattr(self.model, key) == value)
+
+        statement = self.include_related(statement, include_data)
         async with self.session() as session:
             result = (await session.exec(statement)).first()
 

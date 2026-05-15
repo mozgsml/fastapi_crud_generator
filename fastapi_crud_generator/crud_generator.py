@@ -18,6 +18,7 @@ from fastapi_crud_generator.deps import (
     PublicListSchemaDependency,
     PublicSchemaDependency,
     ReplaceSignatureDependency,
+    ReplaceWithAnnotationDependency,
     SortSchemaDependency,
     UpdateSchemaDependency,
 )
@@ -65,7 +66,7 @@ class CRUDCollectionBase(ABC):
 
     dependency_overrides: dict[
         type[ReplaceSignatureDependency],
-        ReplaceSignatureDependency,
+        ReplaceSignatureDependency | Any,
     ] | None = None
 
     dependencies: list[Depends] | None = None
@@ -119,7 +120,7 @@ class CRUDCollectionBase(ABC):
 
         dependency_overrides: dict[
             type[ReplaceSignatureDependency],
-            ReplaceSignatureDependency,
+            ReplaceSignatureDependency | Any,
         ] | None = None,
 
         **router_kwargs: dict,
@@ -215,10 +216,10 @@ class CRUDCollectionBase(ABC):
         )
 
     @property
-    def signature_overrides(
+    def _resolved_overrides(
         self,
     ) -> dict[type[ReplaceSignatureDependency], ReplaceSignatureDependency]:
-        return {
+        defaults = {
             CreateSchemaDependency: CreateSchemaDependency(self.create_schema),
             UpdateSchemaDependency: UpdateSchemaDependency(self.update_schema),
             PublicSchemaDependency: PublicSchemaDependency(self.public_schema),
@@ -229,7 +230,13 @@ class CRUDCollectionBase(ABC):
             IncludeSchemaDependency: IncludeSchemaDependency(
                 self.include_schema),
             PKFieldsDependency: PKFieldsDependency(self.pk_fields),
-        } | self.dependency_overrides
+        }
+        for key, val in self.dependency_overrides.items():
+            defaults[key] = (
+                val if isinstance(val, ReplaceSignatureDependency)
+                else ReplaceWithAnnotationDependency(val)
+            )
+        return defaults
 
     def override_dependencies(self, original_func: Callable):
         sig = inspect.signature(original_func)
@@ -237,7 +244,7 @@ class CRUDCollectionBase(ABC):
         parameters = list(sig.parameters.values())
         new_parameters = []
 
-        overrides = self.signature_overrides
+        overrides = self._resolved_overrides
 
         overrided_params: dict[str, ReplaceSignatureDependency] = {}
 
@@ -307,6 +314,10 @@ class CRUDCollectionBase(ABC):
             [f'{{{n}}}' for n in self.pk_fields.model_fields.keys()])
         )
 
+    # TODO(nick): pass dependencies to add_api_route in each add_*_route method —
+    # combine self.dependencies with the per-route list (get_many_dependencies,
+    # get_one_dependencies, create_dependencies, update_dependencies,
+    # delete_dependencies); currently stored but never applied.
     def add_get_many_route(self, router: APIRouter):
         endpoint = self.override_dependencies(
             self.orm_adapter.get_many_handler,

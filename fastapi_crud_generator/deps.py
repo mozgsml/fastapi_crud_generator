@@ -1,7 +1,7 @@
 import inspect
 from abc import ABC, abstractmethod
 from inspect import Parameter, Signature
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import Depends, Request
 from pydantic import BaseModel
@@ -53,7 +53,21 @@ class ReplaceSingleSignatureDependency(ReplaceSignatureDependency):
                 annotation=self.override,
         )]
 
-class RelpaceSubDependency(ReplaceSingleSignatureDependency):
+class ReplaceWithAnnotationDependency(ReplaceSignatureDependency):
+    """Replace a marker param with an arbitrary annotation."""
+
+    def __init__(self, annotation: Any) -> None:
+        self.annotation = annotation
+
+    def get_new_params(self, original: Parameter) -> list[Parameter]:
+        return [inspect.Parameter(
+            name=original.name,
+            kind=original.kind,
+            annotation=self.annotation,
+        )]
+
+
+class ReplaceSubDependency(ReplaceSingleSignatureDependency):
     def get_new_params(self, original: Parameter) -> list[Parameter]:
         """Replace the original parameter with a Pydantic model sub-dependency.
 
@@ -143,13 +157,13 @@ class PublicSchemaDependency(ReplaceSingleSignatureDependency):
 class PublicListSchemaDependency(ReplaceSingleSignatureDependency):
     """Will be replaced with public_list_schema."""
 
-class FilterSchemaDependency(RelpaceSubDependency):
+class FilterSchemaDependency(ReplaceSubDependency):
     """Will be replaced with filter_schema."""
 
-class SortSchemaDependency(RelpaceSubDependency):
+class SortSchemaDependency(ReplaceSubDependency):
     """Will be replaced with sort_schema."""
 
-class IncludeSchemaDependency(RelpaceSubDependency):
+class IncludeSchemaDependency(ReplaceSubDependency):
     """Will be replaced with include_schema."""
 
 class PKFieldsDependency(ReplaceWithParamsListDependency):
