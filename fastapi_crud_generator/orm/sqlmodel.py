@@ -257,11 +257,14 @@ class SQLModelAdapter(ORMAdapterBase):
     def get_base_single_queryset(self) -> Select:
         return select(self.model)
 
-    async def get_one(self, pk_values: BaseModel) -> SQLModel | None:
+    async def get_one(
+        self, pk_values: BaseModel, include_data: BaseModel,
+    ) -> SQLModel | None:
         """Return a single object by primary key, or None if not found."""
         statement = self.get_base_single_queryset()
         for key, value in pk_values.model_dump().items():
             statement = statement.where(getattr(self.model, key) == value)
+        statement = self.include_related(statement, include_data)
         async with self.session() as session:
             return (await session.exec(statement)).first()
 

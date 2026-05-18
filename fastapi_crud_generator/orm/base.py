@@ -18,10 +18,7 @@ class ORMAdapterBase(ABC):
     ``CRUDCollection``, not here.
     """
 
-    @property
-    @abstractmethod
-    def paginator_class(self) -> type:
-        """ORM-specific paginator class used by get_many."""
+    paginator_class: type = PaginatorBase
 
     @abstractmethod
     def generate_public_schema(
@@ -118,7 +115,9 @@ class ORMAdapterBase(ABC):
         """
 
     @abstractmethod
-    async def get_one(self, pk_values: BaseModel) -> object | None:
+    async def get_one(
+        self, pk_values: BaseModel, include_data: BaseModel,
+    ) -> object | None:
         """Return a single object by primary key, or None if not found."""
 
     @abstractmethod

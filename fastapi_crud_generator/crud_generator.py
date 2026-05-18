@@ -308,15 +308,16 @@ class CRUDCollectionBase(ABC):
     async def get_one_handler(
         self,
         pk_field_values: Annotated[BaseModel, PKFieldsDependency],
+        include_data: Annotated[BaseModel, IncludeSchemaDependency],
     ) -> object:
         """Handle GET /{pk} — return a single object or call get_one_not_found."""
-        result = await self.orm_adapter.get_one(pk_field_values)
+        result = await self.orm_adapter.get_one(pk_field_values, include_data)
         if result is None:
-            return await self.get_one_not_found(pk_field_values)
+            return await self.get_one_not_found(pk_field_values, include_data)
         return result
 
     async def get_one_not_found(
-        self, _pk_field_values: BaseModel,
+        self, _pk_field_values: BaseModel, _include_data: BaseModel,
     ) -> object:
         """Raise 404 by default; override to customise not-found behavior."""
         raise HTTPException(status_code=404, detail="Not found")
