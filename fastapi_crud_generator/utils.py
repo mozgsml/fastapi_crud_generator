@@ -43,7 +43,9 @@ def make_pydantic_field(
         attributes['default_factory'] = None
 
     new_field_info = Field(**attributes)
-    annotated_type = Annotated[annotation, *metadata] if metadata else annotation
+    annotated_type = (
+        Annotated[annotation, *metadata] if metadata else annotation
+    )
     return (annotated_type, new_field_info)
 
 def to_optional_fields(

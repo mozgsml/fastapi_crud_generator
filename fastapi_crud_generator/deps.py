@@ -113,7 +113,7 @@ class ReplaceSubDependency(ReplaceSingleSignatureDependency):
 
 class ReplaceWithParamsListDependency(ReplaceSignatureDependency):
     def get_new_params(self, original: Parameter) -> list[Parameter]:
-        """Generate a list of new parameters from the fields of a Pydantic model.
+        """Generate parameters from the fields of a Pydantic model.
 
         Replaces the original parameter with parameters derived from the fields
         of the model specified in self.override.

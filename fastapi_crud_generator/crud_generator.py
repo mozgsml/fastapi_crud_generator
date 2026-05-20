@@ -25,7 +25,10 @@ from fastapi_crud_generator.deps import (
 from fastapi_crud_generator.orm.base import ORMAdapterBase
 from fastapi_crud_generator.paginator import PaginatorBase
 from fastapi_crud_generator.schemas import PaginatorPage
-from fastapi_crud_generator.utils import create_filter_model, create_sort_schema
+from fastapi_crud_generator.utils import (
+    create_filter_model,
+    create_sort_schema,
+)
 
 
 def _init_list_param(
@@ -37,6 +40,12 @@ def _init_list_param(
 
 
 class CRUDCollectionBase(ABC):
+    """Base class for CRUD route collections.
+
+    Subclass this (or ``CRUDCollection``) to create a set of CRUD endpoints
+    for a given ORM adapter. Override handler methods or class attributes to
+    customise behaviour without touching routing or dependency wiring.
+    """
 
     orm_adapter: ORMAdapterBase | None = None
 
@@ -123,6 +132,7 @@ class CRUDCollectionBase(ABC):
         **router_kwargs: dict,
 
     ):
+        """Initialise the collection, resolving schemas and dependencies."""
         self.orm_adapter = orm_adapter if orm_adapter else self.orm_adapter
         self.verify_orm_adapter()
 
@@ -209,16 +219,20 @@ class CRUDCollectionBase(ABC):
         self.router_kwargs["dependencies"] = self.dependencies
 
 
-    def verify_orm_adapter(self):
-        assert self.orm_adapter, (
-            f"{type(self).__module__}.{type(self).__name__}."
-            f"orm_adapter must be set"
-        )
+    def verify_orm_adapter(self) -> None:
+        """Raise if orm_adapter is not set."""
+        if not self.orm_adapter:
+            msg = (
+                f"{type(self).__module__}.{type(self).__name__}."
+                f"orm_adapter must be set"
+            )
+            raise ValueError(msg)
 
     @property
     def _resolved_overrides(
         self,
     ) -> dict[type[ReplaceSignatureDependency], ReplaceSignatureDependency]:
+        """Merge default overrides with user-supplied dependency_overrides."""
         defaults = {
             CreateSchemaDependency: CreateSchemaDependency(self.create_schema),
             UpdateSchemaDependency: UpdateSchemaDependency(self.update_schema),
@@ -241,7 +255,8 @@ class CRUDCollectionBase(ABC):
             )
         return defaults
 
-    def override_dependencies(self, original_func: Callable):
+    def override_dependencies(self, original_func: Callable) -> Callable:
+        """Replace marker annotations in a handler's signature with real DI."""
         sig = inspect.signature(original_func)
 
         parameters = list(sig.parameters.values())
@@ -253,7 +268,7 @@ class CRUDCollectionBase(ABC):
 
 
         for param in parameters:
-            if (getattr(param.annotation, '__metadata__', None) is not None
+            if (getattr(param.annotation, "__metadata__", None) is not None
                 and len(param.annotation.__metadata__) > 0
             ):
                 annotation = param.annotation.__metadata__[0]
@@ -308,7 +323,7 @@ class CRUDCollectionBase(ABC):
         pk_field_values: Annotated[BaseModel, PKFieldsDependency],
         include_data: Annotated[BaseModel, IncludeSchemaDependency],
     ) -> object:
-        """Handle GET /{pk} — return a single object or call get_one_not_found."""
+        """Return a single object or call get_one_not_found if missing."""
         result = await self.orm_adapter.get_one(pk_field_values, include_data)
         if result is None:
             return await self.get_one_not_found(pk_field_values, include_data)
@@ -358,68 +373,77 @@ class CRUDCollectionBase(ABC):
         return result
 
     def generate_unique_id(self, route: APIRoute) -> str:
-        operation_id = f"{route.name}{route.path_format}"
-        operation_id = re.sub(r"\W", "_", operation_id)
-        assert route.methods
-        operation_id = f"{operation_id}_{list(route.methods)[0].lower()}"
-        operation_id = f"{operation_id}_{type(self.public_schema).__name__}"
-        return operation_id
+        """Build a unique OpenAPI operation ID from name, path and method."""
+        if not route.methods:
+            msg = f"Route {route.name!r} has no HTTP methods defined"
+            raise ValueError(msg)
+        operation_id = re.sub(r"\W", "_", f"{route.name}{route.path_format}")
+        method = next(iter(route.methods)).lower()
+        return f"{operation_id}_{method}_{type(self.public_schema).__name__}"
 
     @property
-    def id_path(self):
+    def id_path(self) -> str:
+        """URL path segment for single-object endpoints, e.g. /{id}."""
         return ("/" + "/".join(
-            [f'{{{n}}}' for n in self.pk_fields.model_fields.keys()])
+            [f"{{{n}}}" for n in self.pk_fields.model_fields])
         )
 
-    # TODO(nick): pass dependencies to add_api_route in each add_*_route method —
-    # combine self.dependencies with the per-route list (get_many_dependencies,
-    # get_one_dependencies, create_dependencies, update_dependencies,
-    # delete_dependencies); currently stored but never applied.
-    def add_get_many_route(self, router: APIRouter):
+    def add_get_many_route(self, router: APIRouter) -> None:
+        """Register GET / on the router."""
         if self.public_schema and not self.disable_get_many:
             router.add_api_route(
                 "",
                 self.override_dependencies(self.get_many_handler),
                 response_model=self.public_list_schema,
+                dependencies=self.get_many_dependencies,
             )
 
-    def add_get_one_route(self, router: APIRouter):
+    def add_get_one_route(self, router: APIRouter) -> None:
+        """Register GET /{pk} on the router."""
         if self.public_schema and not self.disable_get_one:
             router.add_api_route(
                 self.id_path,
                 self.override_dependencies(self.get_one_handler),
                 response_model=self.public_schema,
                 generate_unique_id_function=self.generate_unique_id,
+                dependencies=self.get_one_dependencies,
             )
 
-    def add_create_one_route(self, router: APIRouter):
+    def add_create_one_route(self, router: APIRouter) -> None:
+        """Register POST / on the router."""
         if self.create_schema and not self.disable_create:
             router.add_api_route(
                 "",
                 self.override_dependencies(self.create_one_handler),
                 methods=["POST"],
                 response_model=self.create_out_schema,
+                dependencies=self.create_dependencies,
             )
 
-    def add_update_one_route(self, router: APIRouter):
+    def add_update_one_route(self, router: APIRouter) -> None:
+        """Register PATCH /{pk} on the router."""
         if self.update_schema and not self.disable_update:
             router.add_api_route(
                 self.id_path,
                 self.override_dependencies(self.update_one_handler),
                 methods=["PATCH"],
                 response_model=self.update_out_schema,
+                dependencies=self.update_dependencies,
             )
 
-    def add_delete_one_route(self, router: APIRouter):
+    def add_delete_one_route(self, router: APIRouter) -> None:
+        """Register DELETE /{pk} on the router."""
         if not self.disable_delete:
             router.add_api_route(
                 self.id_path,
                 self.override_dependencies(self.delete_one_handler),
                 methods=["DELETE"],
                 response_model=self.public_schema,
+                dependencies=self.delete_dependencies,
             )
 
-    def get_router(self, **router_kwargs):
+    def get_router(self, **router_kwargs) -> APIRouter:
+        """Build and return an APIRouter with all enabled CRUD routes."""
         self.verify_orm_adapter()
         self.router_kwargs.update(router_kwargs)
         router = APIRouter(**self.router_kwargs)
@@ -433,4 +457,4 @@ class CRUDCollectionBase(ABC):
         return router
 
 class CRUDCollection(CRUDCollectionBase):
-    pass
+    """Concrete CRUD collection — subclass and set orm_adapter to use."""

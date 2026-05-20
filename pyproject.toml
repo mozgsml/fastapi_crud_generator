@@ -18,6 +18,9 @@ sqlmodel = ["sqlmodel"]
 [tool.hatch.build.targets.wheel]
 packages = ["fastapi_crud_generator"]
 
+[tool.ruff]
+line-length = 79
+
 [dependency-groups]
 dev = [
     "pytest",
