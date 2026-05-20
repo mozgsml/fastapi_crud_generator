@@ -106,6 +106,10 @@ class ORMAdapterBase(ABC):
         """
 
     @abstractmethod
+    def generate_pk_schema(self) -> type[BaseModel]:
+        """Build a Pydantic model containing only the primary key fields."""
+
+    @abstractmethod
     def generate_include_schema(self) -> type[BaseModel]:
         """Build a query schema for selecting which relationships to include.
 

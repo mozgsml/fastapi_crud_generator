@@ -185,6 +185,15 @@ class SQLModelAdapter(ORMAdapterBase):
             exclude_metadata=(FieldInfoMetadata,),
         )
 
+    def generate_pk_schema(self) -> type[BaseModel]:
+        """Build a Pydantic model containing only the primary key fields."""
+        return slice_model(
+            f"{self.model.__name__}PK",
+            self.model,
+            fields=self.get_pk_field_names(),
+            exclude_metadata=(FieldInfoMetadata,),
+        )
+
     def generate_include_schema(self) -> BaseModel:
         """Build a query schema for selecting which relationships to include.
 

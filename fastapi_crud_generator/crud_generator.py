@@ -1,6 +1,5 @@
 import inspect
 import re
-import uuid
 from abc import ABC
 from collections.abc import Callable
 from functools import wraps
@@ -14,8 +13,8 @@ from fastapi_crud_generator.deps import (
     CreateSchemaDependency,
     FilterSchemaDependency,
     IncludeSchemaDependency,
-    PKFieldsDependency,
     PaginatorDependency,
+    PKFieldsDependency,
     PublicListSchemaDependency,
     PublicSchemaDependency,
     ReplaceSignatureDependency,
@@ -23,8 +22,8 @@ from fastapi_crud_generator.deps import (
     SortSchemaDependency,
     UpdateSchemaDependency,
 )
-from fastapi_crud_generator.paginator import PaginatorBase
 from fastapi_crud_generator.orm.base import ORMAdapterBase
+from fastapi_crud_generator.paginator import PaginatorBase
 from fastapi_crud_generator.schemas import PaginatorPage
 from fastapi_crud_generator.utils import create_filter_model, create_sort_schema
 
@@ -36,9 +35,6 @@ def _init_list_param(
     """Return param if provided, else fall back to class_default or []."""
     return param if param is not None else (class_default or [])
 
-
-class Id_UUID(BaseModel):
-    id: uuid.UUID
 
 class CRUDCollectionBase(ABC):
 
@@ -53,8 +49,7 @@ class CRUDCollectionBase(ABC):
     create_schema: BaseModel = None
     create_out_schema = Any
 
-    # TODO add pk schema generation
-    pk_fields: BaseModel = Id_UUID
+    pk_fields: type[BaseModel] | None = None
 
     base_fields: set[str] | None = None
     public_fields: set[str] | None = None
@@ -105,7 +100,7 @@ class CRUDCollectionBase(ABC):
         sort_schema: BaseModel | None = None,
         include_schema: BaseModel | None = None,
 
-        pk_fields: BaseModel = None,
+        pk_fields: type[BaseModel] | None = None,
 
         dependencies: list[Depends] | None = None,
         get_one_dependencies: list[Depends] | None = None,
@@ -164,7 +159,10 @@ class CRUDCollectionBase(ABC):
             self.public_list_schema or
             PaginatorPage[self.public_schema]
         )
-        self.pk_fields = pk_fields or self.pk_fields
+        self.pk_fields = (
+            pk_fields or self.pk_fields
+            or self.orm_adapter.generate_pk_schema()
+        )
         self.filter_schema = filter_schema or self.filter_schema
         if self.filter_schema is None:
             self.filter_schema = create_filter_model(self.public_schema)
@@ -268,13 +266,13 @@ class CRUDCollectionBase(ABC):
                     ReplaceSignatureDependency
                 ))
             ):
-                try:
-                    override = overrides[annotation]
-                except KeyError as exc:
-                    raise ValueError(
+                if annotation not in overrides:
+                    msg = (
                         f"You need to add {annotation.__name__} "
-                        f"to {type(self).__name__}'s dependency_overrides",
-                    ) from exc
+                        f"to {type(self).__name__}'s dependency_overrides"
+                    )
+                    raise ValueError(msg)
+                override = overrides[annotation]
                 new_params = override.get_new_params(param)
                 new_parameters.extend(new_params)
 

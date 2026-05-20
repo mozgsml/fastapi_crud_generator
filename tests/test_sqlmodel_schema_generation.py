@@ -130,6 +130,53 @@ class TestGenerateCreateSchema:
 # generate_update_schema
 # ---------------------------------------------------------------------------
 
+class ArticleCompositePK(SQLModel, table=True):
+    __tablename__ = "test_schema_gen_article_composite_pk"
+
+    user_id: int = Field(primary_key=True)
+    club_id: int = Field(primary_key=True)
+    title: str
+
+
+# ---------------------------------------------------------------------------
+# generate_pk_schema
+# ---------------------------------------------------------------------------
+
+class TestGeneratePKSchema:
+
+    def test_single_pk_field(self):
+        schema = make_adapter(Article).generate_pk_schema()
+        assert set(schema.model_fields) == {"id"}
+
+    def test_pk_field_type_preserved(self):
+        schema = make_adapter(Article).generate_pk_schema()
+        assert schema.model_fields["id"].annotation == uuid.UUID
+
+    def test_composite_pk_all_fields_present(self):
+        schema = make_adapter(ArticleCompositePK).generate_pk_schema()
+        assert set(schema.model_fields) == {"user_id", "club_id"}
+
+    def test_non_pk_fields_excluded(self):
+        schema = make_adapter(Article).generate_pk_schema()
+        assert "title" not in schema.model_fields
+        assert "content" not in schema.model_fields
+
+    def test_schema_name(self):
+        schema = make_adapter(Article).generate_pk_schema()
+        assert schema.__name__ == "ArticlePK"
+
+    def test_orm_metadata_stripped(self):
+        schema = make_adapter(Article).generate_pk_schema()
+        for field_info in schema.model_fields.values():
+            orm_meta = [m for m in field_info.metadata
+                        if isinstance(m, FieldInfoMetadata)]
+            assert not orm_meta
+
+
+# ---------------------------------------------------------------------------
+# generate_update_schema
+# ---------------------------------------------------------------------------
+
 class TestGenerateUpdateSchema:
 
     def test_default_same_field_set_as_create(self):
