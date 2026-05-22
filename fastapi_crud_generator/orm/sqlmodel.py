@@ -52,28 +52,35 @@ class SQLModelAdapter(ORMAdapterBase):
     Args:
         get_session: Async generator that yields an ``AsyncSession``.
         model: The SQLModel table class to operate on.
+
     """
 
     get_session: Callable[[], AsyncGenerator[AsyncSession, None, None]] = None
-    model: SQLModel | None = None
+    model: type[SQLModel] | None = None
     paginator_class = SQLModelPaginator
 
     def __init__(self, *,
-        get_session: Callable[
-            [], AsyncGenerator[AsyncSession, None, None]
+        get_session: Callable[  # noqa: RUF013
+            [], AsyncGenerator[AsyncSession, None, None],
         ] = None,
-        model: SQLModel | None = None,
+        model: type[SQLModel] | None = None,
     ):
-        assert SQLMODEL_INSTALLED, "sqlmodel is not installed"
+        if not SQLMODEL_INSTALLED:
+            raise ImportError("sqlmodel is not installed")
         self.get_session = get_session or self.__class__.get_session
         self.model = model or self.model
-        assert self.get_session, "get_session is required"
-        assert self.model, "model is required"
+        if not self.get_session:
+            raise ValueError("get_session is required")
+        if not self.model:
+            raise ValueError("model is required")
 
     @asynccontextmanager
     async def session(self) -> AsyncGenerator[AsyncSession, None, None]:
         async for s in self.get_session():
             yield s
+
+    def get_model_name(self) -> str:  # noqa: D102
+        return self.model.__name__.lower()
 
     def get_crud_config(self) -> CRUDConfigDict:
         return getattr(self.model, 'crud_config', CRUDConfigDict())
@@ -233,8 +240,8 @@ class SQLModelAdapter(ORMAdapterBase):
         statement: Select,
         sort_data: BaseModel,
     ) -> Select:
-        assert len(sort_data.model_fields) == 1, (
-            "Only one sort argument is supported")
+        if len(type(sort_data).model_fields) != 1:
+            raise ValueError("Only one sort argument is supported")
         sort_dict = sort_data.model_dump(exclude_unset=True)
 
         if len(sort_dict) == 0:

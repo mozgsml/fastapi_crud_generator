@@ -75,9 +75,19 @@ class TestIdPath:
 
     def test_single_pk_path(self):
         crud = CRUDCollection(orm_adapter=make_adapter(ItemUUID))
-        assert crud.id_path == "/{id}"
+        assert crud.id_path == "/{itemuuid_id}"
 
     def test_composite_pk_path_contains_both_fields(self):
         crud = CRUDCollection(orm_adapter=make_adapter(ItemCompositePK))
         assert "{user_id}" in crud.id_path
         assert "{club_id}" in crud.id_path
+
+    def test_manual_pk_fields_without_alias_uses_field_name(self):
+        class ManualPK(BaseModel):
+            id: uuid.UUID
+
+        crud = CRUDCollection(
+            orm_adapter=make_adapter(ItemUUID),
+            pk_fields=ManualPK,
+        )
+        assert crud.id_path == "/{id}"

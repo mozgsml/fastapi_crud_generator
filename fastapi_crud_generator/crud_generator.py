@@ -7,7 +7,7 @@ from typing import Annotated, Any, get_type_hints
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.routing import APIRoute
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, create_model
 
 from fastapi_crud_generator.deps import (
     CreateSchemaDependency,
@@ -171,7 +171,9 @@ class CRUDCollectionBase(ABC):
         )
         self.pk_fields = (
             pk_fields or self.pk_fields
-            or self.orm_adapter.generate_pk_schema()
+            or self.apply_pk_aliases(
+                self.orm_adapter.generate_pk_schema(),
+            )
         )
         self.filter_schema = filter_schema or self.filter_schema
         if self.filter_schema is None:
@@ -217,7 +219,30 @@ class CRUDCollectionBase(ABC):
             else dict(self.router_kwargs or {})
         )
         self.router_kwargs["dependencies"] = self.dependencies
+        self._sub_collections: list[
+            tuple[str, CRUDCollectionBase, dict[str, str]]
+        ] = []
 
+
+    def apply_pk_aliases(
+        self, pk_schema: type[BaseModel],
+    ) -> type[BaseModel]:
+        """Return pk_schema with model-name-prefixed aliases on plain fields.
+
+        Fields whose names contain no underscore get an alias
+        ``{model_name}_{field}`` (e.g. ``id`` → ``user_id``).
+        Override to customise aliasing behaviour.
+        """
+        model_name = self.orm_adapter.get_model_name()
+        if not model_name:
+            return pk_schema
+        field_defs = {}
+        for name, info in pk_schema.model_fields.items():
+            alias = name if "_" in name else f"{model_name}_{name}"
+            field_defs[name] = (
+                info.annotation, Field(validation_alias=alias),
+            )
+        return create_model(pk_schema.__name__, **field_defs)
 
     def verify_orm_adapter(self) -> None:
         """Raise if orm_adapter is not set."""
@@ -255,14 +280,19 @@ class CRUDCollectionBase(ABC):
             )
         return defaults
 
-    def override_dependencies(self, original_func: Callable) -> Callable:
+    def override_dependencies(  # noqa: C901
+        self,
+        original_func: Callable,
+        overrides: dict | None = None,
+    ) -> Callable:
         """Replace marker annotations in a handler's signature with real DI."""
         sig = inspect.signature(original_func)
 
         parameters = list(sig.parameters.values())
         new_parameters = []
 
-        overrides = self._resolved_overrides
+        if overrides is None:
+            overrides = self._resolved_overrides
 
         overrided_params: dict[str, ReplaceSignatureDependency] = {}
 
@@ -383,9 +413,10 @@ class CRUDCollectionBase(ABC):
 
     @property
     def id_path(self) -> str:
-        """URL path segment for single-object endpoints, e.g. /{id}."""
-        return ("/" + "/".join(
-            [f"{{{n}}}" for n in self.pk_fields.model_fields])
+        """URL path segment for single-object endpoints, e.g. /{user_id}."""
+        return "/" + "/".join(
+            f"{{{f.validation_alias or n}}}"
+            for n, f in self.pk_fields.model_fields.items()
         )
 
     def add_get_many_route(self, router: APIRouter) -> None:

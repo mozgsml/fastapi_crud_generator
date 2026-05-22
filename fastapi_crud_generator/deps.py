@@ -112,11 +112,21 @@ class ReplaceSubDependency(ReplaceSingleSignatureDependency):
         )]
 
 class ReplaceWithParamsListDependency(ReplaceSignatureDependency):
+    """Explodes a Pydantic model into individual function parameters.
+
+    Each model field becomes a separate parameter. If a field has a
+    ``validation_alias``, that alias is used as the parameter name instead
+    of the field name — useful for renaming path parameters (e.g. ``id``
+    → ``user_id``) without changing the internal model field name.
+    ``pack_to_originals`` reverses the mapping before calling the handler.
+    """
+
     def get_new_params(self, original: Parameter) -> list[Parameter]:
         """Generate parameters from the fields of a Pydantic model.
 
         Replaces the original parameter with parameters derived from the fields
-        of the model specified in self.override.
+        of the model specified in self.override. Uses ``validation_alias`` as
+        the parameter name when present.
 
         Args:
             original (Parameter): The original parameter to be replaced.
@@ -128,8 +138,9 @@ class ReplaceWithParamsListDependency(ReplaceSignatureDependency):
         """
         new_parameters = []
         for name, field_info in self.override.model_fields.items():
+            param_name = field_info.validation_alias or name
             new_param = inspect.Parameter(
-                name=name,
+                name=param_name,
                 kind=Parameter.POSITIONAL_OR_KEYWORD,
                 annotation=field_info.annotation,
             )
@@ -138,9 +149,10 @@ class ReplaceWithParamsListDependency(ReplaceSignatureDependency):
 
     def pack_to_originals(self, original_name: str, **kwargs):
         attr_values: dict = {}
-        for name in self.override.model_fields.keys():
-            attr_values[name] = kwargs.pop(name, None)
-        value = self.override(**attr_values)
+        for name, field_info in self.override.model_fields.items():
+            param_name = field_info.validation_alias or name
+            attr_values[param_name] = kwargs.pop(param_name, None)
+        value = self.override.model_validate(attr_values)
         kwargs[original_name] = value
         return kwargs
 
@@ -168,6 +180,9 @@ class IncludeSchemaDependency(ReplaceSubDependency):
 
 class PKFieldsDependency(ReplaceWithParamsListDependency):
     """Will be replaced with pk_fields."""
+
+class ParentPKFieldsDependency(ReplaceWithParamsListDependency):
+    """Will be replaced with parent collection's pk_fields in sub-collections."""
 
 class PaginatorDependency(ReplaceWithAnnotationDependency):
     """Will be replaced with the ORM-specific paginator."""

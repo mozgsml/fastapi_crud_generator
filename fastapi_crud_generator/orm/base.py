@@ -105,6 +105,10 @@ class ORMAdapterBase(ABC):
 
         """
 
+    def get_model_name(self) -> str:
+        """Return the lowercase model name, or empty string if unavailable."""
+        return ""
+
     @abstractmethod
     def generate_pk_schema(self) -> type[BaseModel]:
         """Build a Pydantic model containing only the primary key fields."""

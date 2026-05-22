@@ -21,6 +21,9 @@ packages = ["fastapi_crud_generator"]
 [tool.ruff]
 line-length = 79
 
+[tool.ruff.lint]
+ignore = ["EM101", "TRY003"]
+
 [dependency-groups]
 dev = [
     "pytest",
