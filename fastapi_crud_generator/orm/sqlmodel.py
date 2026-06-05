@@ -9,7 +9,7 @@ from pydantic_core import PydanticUndefined
 from fastapi_crud_generator.config import CRUDConfigDict
 from fastapi_crud_generator.orm.base import ORMAdapterBase
 from fastapi_crud_generator.paginator import PaginatorBase
-from fastapi_crud_generator.schemas import PaginatorPage
+from fastapi_crud_generator.schemas import PaginatorPage, ParentRef
 from fastapi_crud_generator.utils import slice_model
 
 try:
@@ -222,7 +222,9 @@ class SQLModelAdapter(ORMAdapterBase):
             ),
         )
 
-    def get_base_list_queryset(self) -> Select:
+    def get_base_list_queryset(
+        self, parent_refs: list[ParentRef] | None = None,  # noqa: ARG002
+    ) -> Select:
         return select(self.model)
 
     def apply_queryset_filter(
@@ -274,7 +276,10 @@ class SQLModelAdapter(ORMAdapterBase):
         return select(self.model)
 
     async def get_one(
-        self, pk_values: BaseModel, include_data: BaseModel,
+        self,
+        pk_values: BaseModel,
+        include_data: BaseModel,
+        parent_refs: list[ParentRef] | None = None,  # noqa: ARG002
     ) -> SQLModel | None:
         """Return a single object by primary key, or None if not found."""
         statement = self.get_base_single_queryset()
@@ -290,16 +295,21 @@ class SQLModelAdapter(ORMAdapterBase):
         sort_data: BaseModel,
         include_data: BaseModel,
         paginator: SQLModelPaginator,
+        parent_refs: list[ParentRef] | None = None,
     ) -> PaginatorPage:
         """Return a paginated, filtered, sorted list."""
-        statement = self.get_base_list_queryset()
+        statement = self.get_base_list_queryset(parent_refs=parent_refs)
         statement = self.apply_queryset_filter(statement, filter_data)
         statement = self.apply_queryset_sort(statement, sort_data)
         statement = self.include_related(statement, include_data)
         async with self.session() as session:
             return await paginator.paginate(session, statement)
 
-    async def create_one(self, data: BaseModel) -> SQLModel:
+    async def create_one(
+        self,
+        data: BaseModel,
+        parent_refs: list[ParentRef] | None = None,  # noqa: ARG002
+    ) -> SQLModel:
         """Persist a new object and return it."""
         item = self.model.model_validate(data)
         async with self.session() as session:
@@ -312,6 +322,7 @@ class SQLModelAdapter(ORMAdapterBase):
         self,
         pk_values: BaseModel,
         data: BaseModel,
+        parent_refs: list[ParentRef] | None = None,  # noqa: ARG002
     ) -> None:
         """Update an existing object by primary key."""
         new_values = data.model_dump(exclude_unset=True)
@@ -323,7 +334,11 @@ class SQLModelAdapter(ORMAdapterBase):
             await session.exec(statement)
             await session.commit()
 
-    async def delete_one(self, pk_values: BaseModel) -> SQLModel | None:
+    async def delete_one(
+        self,
+        pk_values: BaseModel,
+        parent_refs: list[ParentRef] | None = None,  # noqa: ARG002
+    ) -> SQLModel | None:
         """Delete an object by primary key and return it, or None."""
         statement = self.get_base_single_queryset()
         for key, value in pk_values.model_dump().items():

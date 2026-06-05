@@ -8,6 +8,7 @@ from fastapi.params import Depends
 from pydantic import BaseModel, Field
 
 from fastapi_crud_generator.deps import (
+    ConstantDependency,
     CreateSchemaDependency,
     FilterSchemaDependency,
     PaginatorDependency,
@@ -16,9 +17,11 @@ from fastapi_crud_generator.deps import (
     ReplaceWithAnnotationDependency,
 )
 from fastapi_crud_generator.paginator import PaginatorBase
+from fastapi_crud_generator.schemas import ParentRef
 
 
 def make_param(name: str = "param") -> Parameter:
+    # Minimal Parameter stub for passing into get_new_params() in tests.
     return Parameter(name, Parameter.POSITIONAL_OR_KEYWORD)
 
 
@@ -150,9 +153,269 @@ class TestReplaceWithParamsListDependency:
         assert "user_id" not in result
 
     def test_parent_pk_fields_dependency_uses_alias(self):
-        dep = ParentPKFieldsDependency(SamplePKAliased)
+        base = PKFieldsDependency(SamplePKAliased)
+        dep = ParentPKFieldsDependency(base_dep=base, model=object)
         params = dep.get_new_params(make_param("parent_pk"))
         assert params[0].name == "user_id"
+
+
+# ---------------------------------------------------------------------------
+# ConstantDependency
+# ---------------------------------------------------------------------------
+
+class TestConstantDependency:
+
+    def test_removes_param_from_signature(self):
+        dep = ConstantDependency([])
+        assert dep.get_new_params(make_param("p")) == []
+
+    def test_injects_value_into_kwargs(self):
+        dep = ConstantDependency([])
+        result = dep.pack_to_originals("p", other="x")
+        assert result["p"] == []
+        assert result["other"] == "x"
+
+    def test_injects_none(self):
+        dep = ConstantDependency(None)
+        result = dep.pack_to_originals("p")
+        assert result["p"] is None
+
+    def test_injects_arbitrary_object(self):
+        sentinel = object()
+        dep = ConstantDependency(sentinel)
+        result = dep.pack_to_originals("p")
+        assert result["p"] is sentinel
+
+
+# ---------------------------------------------------------------------------
+# ParentPKFieldsDependency
+# ---------------------------------------------------------------------------
+
+class FakeModel:
+    """Dummy ORM model used as ParentRef.model in tests."""
+
+
+class FakeChildModel:
+    """Dummy child ORM model."""
+
+
+class FakeGrandChildModel:
+    """Dummy grandchild ORM model (third level)."""
+
+
+class OrgPK(BaseModel):
+    id: uuid.UUID = Field(validation_alias="org_id")
+
+
+class UserPK(BaseModel):
+    id: uuid.UUID = Field(validation_alias="user_id")
+
+
+class GamePK(BaseModel):
+    id: uuid.UUID = Field(validation_alias="game_id")
+
+
+class CompositePK(BaseModel):
+    user_id: uuid.UUID
+    club_id: uuid.UUID
+
+
+class TestParentPKFieldsDependency:
+
+    def test_single_level_get_new_params(self):
+        base = PKFieldsDependency(UserPK)
+        dep = ParentPKFieldsDependency(base_dep=base, model=FakeModel)
+        params = dep.get_new_params(make_param("parent_refs"))
+        assert len(params) == 1
+        assert params[0].name == "user_id"
+
+    def test_single_level_pack_to_originals(self):
+        base = PKFieldsDependency(UserPK)
+        dep = ParentPKFieldsDependency(base_dep=base, model=FakeModel)
+        val = uuid.uuid4()
+        result = dep.pack_to_originals("parent_refs", user_id=val)
+        refs = result["parent_refs"]
+        assert len(refs) == 1
+        assert isinstance(refs[0], ParentRef)
+        assert refs[0].model is FakeModel
+        assert refs[0].pk_values.id == val  # type: ignore[attr-defined]
+
+    def test_two_level_get_new_params(self):
+        org_base = PKFieldsDependency(OrgPK)
+        user_base = PKFieldsDependency(UserPK)
+        grandparent = ParentPKFieldsDependency(
+            base_dep=org_base, model=FakeModel,
+        )
+        dep = ParentPKFieldsDependency(
+            base_dep=user_base,
+            model=FakeChildModel,
+            parent_dep=grandparent,
+        )
+        params = dep.get_new_params(make_param("parent_refs"))
+        names = [p.name for p in params]
+        assert names == ["org_id", "user_id"]
+
+    def test_two_level_pack_to_originals(self):
+        org_base = PKFieldsDependency(OrgPK)
+        user_base = PKFieldsDependency(UserPK)
+        grandparent = ParentPKFieldsDependency(
+            base_dep=org_base, model=FakeModel,
+        )
+        dep = ParentPKFieldsDependency(
+            base_dep=user_base,
+            model=FakeChildModel,
+            parent_dep=grandparent,
+        )
+        org_id = uuid.uuid4()
+        user_id = uuid.uuid4()
+        result = dep.pack_to_originals(
+            "parent_refs", org_id=org_id, user_id=user_id,
+        )
+        refs = result["parent_refs"]
+        assert len(refs) == 2
+        assert refs[0].model is FakeModel
+        assert refs[0].pk_values.id == org_id  # type: ignore[attr-defined]
+        assert refs[1].model is FakeChildModel
+        assert refs[1].pk_values.id == user_id  # type: ignore[attr-defined]
+
+    def test_with_constant_dependency_as_parent_dep(self):
+        base = PKFieldsDependency(UserPK)
+        dep = ParentPKFieldsDependency(
+            base_dep=base,
+            model=FakeModel,
+            parent_dep=ConstantDependency([]),
+        )
+        val = uuid.uuid4()
+        result = dep.pack_to_originals("parent_refs", user_id=val)
+        refs = result["parent_refs"]
+        assert len(refs) == 1
+        assert refs[0].model is FakeModel
+
+    def test_no_extra_kwargs_leaked(self):
+        base = PKFieldsDependency(UserPK)
+        dep = ParentPKFieldsDependency(base_dep=base, model=FakeModel)
+        val = uuid.uuid4()
+        result = dep.pack_to_originals(
+            "parent_refs", user_id=val, other="keep",
+        )
+        assert "user_id" not in result
+        assert result["other"] == "keep"
+
+    def test_two_level_no_kwargs_leaked(self):
+        grandparent = ParentPKFieldsDependency(
+            base_dep=PKFieldsDependency(OrgPK), model=FakeModel,
+        )
+        dep = ParentPKFieldsDependency(
+            base_dep=PKFieldsDependency(UserPK),
+            model=FakeChildModel,
+            parent_dep=grandparent,
+        )
+        org_id = uuid.uuid4()
+        user_id = uuid.uuid4()
+        result = dep.pack_to_originals(
+            "parent_refs", org_id=org_id, user_id=user_id,
+        )
+        assert "org_id" not in result
+        assert "user_id" not in result
+
+    def test_annotation_dep_as_base_dep(self):
+        """base_dep = ReplaceWithAnnotationDependency (e.g. users/me auth).
+
+        The annotation dep keeps the param name unchanged; FastAPI injects
+        the value under original_name, so pack_to_originals wraps it as-is.
+        """
+        annotation = Annotated[UserPK, Depends(lambda: None)]
+        base = ReplaceWithAnnotationDependency(annotation)
+        dep = ParentPKFieldsDependency(base_dep=base, model=FakeModel)
+
+        # Simulate FastAPI injecting UserPK under original_name
+        val = uuid.uuid4()
+        injected_pk = UserPK.model_validate({"user_id": val})
+        result = dep.pack_to_originals("parent_refs", parent_refs=injected_pk)
+
+        refs = result["parent_refs"]
+        assert len(refs) == 1
+        assert isinstance(refs[0], ParentRef)
+        assert refs[0].model is FakeModel
+        assert refs[0].pk_values is injected_pk
+
+    def _three_level_dep(self) -> ParentPKFieldsDependency:
+        # /orgs/{org_id}/users/{user_id}/games/{game_id}/...
+        grandparent = ParentPKFieldsDependency(
+            base_dep=PKFieldsDependency(OrgPK), model=FakeModel,
+        )
+        parent = ParentPKFieldsDependency(
+            base_dep=PKFieldsDependency(UserPK),
+            model=FakeChildModel,
+            parent_dep=grandparent,
+        )
+        return ParentPKFieldsDependency(
+            base_dep=PKFieldsDependency(GamePK),
+            model=FakeGrandChildModel,
+            parent_dep=parent,
+        )
+
+    def test_three_level_get_new_params(self):
+        dep = self._three_level_dep()
+        params = dep.get_new_params(make_param("parent_refs"))
+        names = [p.name for p in params]
+        assert names == ["org_id", "user_id", "game_id"]
+
+    def test_three_level_pack_to_originals(self):
+        dep = self._three_level_dep()
+        org_id = uuid.uuid4()
+        user_id = uuid.uuid4()
+        game_id = uuid.uuid4()
+        result = dep.pack_to_originals(
+            "parent_refs", org_id=org_id, user_id=user_id, game_id=game_id,
+        )
+        refs = result["parent_refs"]
+        assert len(refs) == 3
+        assert [r.model for r in refs] == [
+            FakeModel, FakeChildModel, FakeGrandChildModel,
+        ]
+        assert [r.pk_values.id for r in refs] == [org_id, user_id, game_id]
+        # temporary slot reuse must not leak path params
+        assert "org_id" not in result
+        assert "user_id" not in result
+        assert "game_id" not in result
+
+    def test_constant_dependency_as_parent_dep_with_prebuilt_refs(self):
+        # Break the chain with a fixed, non-empty ancestor list.
+        preset = [
+            ParentRef(model=FakeModel, pk_values=OrgPK(org_id=uuid.uuid4())),
+        ]
+        dep = ParentPKFieldsDependency(
+            base_dep=PKFieldsDependency(UserPK),
+            model=FakeChildModel,
+            parent_dep=ConstantDependency(preset),
+        )
+        user_id = uuid.uuid4()
+        result = dep.pack_to_originals("parent_refs", user_id=user_id)
+        refs = result["parent_refs"]
+        assert len(refs) == 2
+        assert refs[0] is preset[0]
+        assert refs[1].model is FakeChildModel
+        assert refs[1].pk_values.id == user_id  # type: ignore[attr-defined]
+
+    def test_composite_parent_pk(self):
+        dep = ParentPKFieldsDependency(
+            base_dep=PKFieldsDependency(CompositePK), model=FakeModel,
+        )
+        params = dep.get_new_params(make_param("parent_refs"))
+        assert {p.name for p in params} == {"user_id", "club_id"}
+
+        user_id = uuid.uuid4()
+        club_id = uuid.uuid4()
+        result = dep.pack_to_originals(
+            "parent_refs", user_id=user_id, club_id=club_id,
+        )
+        refs = result["parent_refs"]
+        assert len(refs) == 1
+        assert refs[0].pk_values.user_id == user_id  # type: ignore[attr-defined]
+        assert refs[0].pk_values.club_id == club_id  # type: ignore[attr-defined]
+        assert "user_id" not in result
+        assert "club_id" not in result
 
 
 # ---------------------------------------------------------------------------

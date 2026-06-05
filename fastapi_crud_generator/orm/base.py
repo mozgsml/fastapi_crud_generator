@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from pydantic import BaseModel
 
 from fastapi_crud_generator.paginator import PaginatorBase
-from fastapi_crud_generator.schemas import PaginatorPage
+from fastapi_crud_generator.schemas import PaginatorPage, ParentRef
 
 
 class ORMAdapterBase(ABC):
@@ -124,7 +124,10 @@ class ORMAdapterBase(ABC):
 
     @abstractmethod
     async def get_one(
-        self, pk_values: BaseModel, include_data: BaseModel,
+        self,
+        pk_values: BaseModel,
+        include_data: BaseModel,
+        parent_refs: list[ParentRef] | None = None,
     ) -> object | None:
         """Return a single object by primary key, or None if not found."""
 
@@ -135,11 +138,16 @@ class ORMAdapterBase(ABC):
         sort_data: BaseModel,
         include_data: BaseModel,
         paginator: PaginatorBase,
+        parent_refs: list[ParentRef] | None = None,
     ) -> PaginatorPage:
         """Return a paginated, filtered, sorted list."""
 
     @abstractmethod
-    async def create_one(self, data: BaseModel) -> object:
+    async def create_one(
+        self,
+        data: BaseModel,
+        parent_refs: list[ParentRef] | None = None,
+    ) -> object:
         """Persist a new object and return it."""
 
     @abstractmethod
@@ -147,9 +155,14 @@ class ORMAdapterBase(ABC):
         self,
         pk_values: BaseModel,
         data: BaseModel,
+        parent_refs: list[ParentRef] | None = None,
     ) -> None:
         """Update an existing object by primary key."""
 
     @abstractmethod
-    async def delete_one(self, pk_values: BaseModel) -> object | None:
+    async def delete_one(
+        self,
+        pk_values: BaseModel,
+        parent_refs: list[ParentRef] | None = None,
+    ) -> object | None:
         """Delete an object by primary key and return it, or None."""

@@ -10,10 +10,12 @@ from fastapi.routing import APIRoute
 from pydantic import BaseModel, Field, create_model
 
 from fastapi_crud_generator.deps import (
+    ConstantDependency,
     CreateSchemaDependency,
     FilterSchemaDependency,
     IncludeSchemaDependency,
     PaginatorDependency,
+    ParentPKFieldsDependency,
     PKFieldsDependency,
     PublicListSchemaDependency,
     PublicSchemaDependency,
@@ -272,6 +274,7 @@ class CRUDCollectionBase(ABC):
             PaginatorDependency: PaginatorDependency(
                 self.orm_adapter.paginator_class,
             ),
+            ParentPKFieldsDependency: ConstantDependency([]),
         }
         for key, val in self.dependency_overrides.items():
             defaults[key] = (
@@ -352,9 +355,12 @@ class CRUDCollectionBase(ABC):
         self,
         pk_field_values: Annotated[BaseModel, PKFieldsDependency],
         include_data: Annotated[BaseModel, IncludeSchemaDependency],
+        parent_refs: Annotated[list, ParentPKFieldsDependency],
     ) -> object:
         """Return a single object or call get_one_not_found if missing."""
-        result = await self.orm_adapter.get_one(pk_field_values, include_data)
+        result = await self.orm_adapter.get_one(
+            pk_field_values, include_data, parent_refs=parent_refs,
+        )
         if result is None:
             return await self.get_one_not_found(pk_field_values, include_data)
         return result
@@ -371,33 +377,44 @@ class CRUDCollectionBase(ABC):
         filter_data: Annotated[BaseModel, FilterSchemaDependency],
         sort_data: Annotated[BaseModel, SortSchemaDependency],
         include_data: Annotated[BaseModel, IncludeSchemaDependency],
+        parent_refs: Annotated[list, ParentPKFieldsDependency],
     ) -> object:
         """Handle GET / — return a paginated, filtered, sorted list."""
         return await self.orm_adapter.get_many(
             filter_data, sort_data, include_data, paginator,
+            parent_refs=parent_refs,
         )
 
     async def create_one_handler(
         self,
         create_data: Annotated[BaseModel, CreateSchemaDependency],
+        parent_refs: Annotated[list, ParentPKFieldsDependency],
     ) -> object:
         """Handle POST / — persist a new object and return it."""
-        return await self.orm_adapter.create_one(create_data)
+        return await self.orm_adapter.create_one(
+            create_data, parent_refs=parent_refs,
+        )
 
     async def update_one_handler(
         self,
         pk_field_values: Annotated[BaseModel, PKFieldsDependency],
         update_data: Annotated[BaseModel, UpdateSchemaDependency],
+        parent_refs: Annotated[list, ParentPKFieldsDependency],
     ) -> None:
         """Handle PATCH /{pk} — partially update an existing object."""
-        await self.orm_adapter.update_one(pk_field_values, update_data)
+        await self.orm_adapter.update_one(
+            pk_field_values, update_data, parent_refs=parent_refs,
+        )
 
     async def delete_one_handler(
         self,
         pk_field_values: Annotated[BaseModel, PKFieldsDependency],
+        parent_refs: Annotated[list, ParentPKFieldsDependency],
     ) -> object:
         """Handle DELETE /{pk} — delete an object by primary key."""
-        result = await self.orm_adapter.delete_one(pk_field_values)
+        result = await self.orm_adapter.delete_one(
+            pk_field_values, parent_refs=parent_refs,
+        )
         if result is None:
             raise HTTPException(status_code=404, detail="Not found")
         return result

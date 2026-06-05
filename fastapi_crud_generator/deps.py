@@ -6,6 +6,8 @@ from typing import Annotated, Any
 from fastapi import Depends, Request
 from pydantic import BaseModel
 
+from fastapi_crud_generator.schemas import ParentRef
+
 
 class ReplaceSignatureDependency(ABC):
     """The signature of the parameter in the endpoint of ORMAdapter.
@@ -157,6 +159,31 @@ class ReplaceWithParamsListDependency(ReplaceSignatureDependency):
         return kwargs
 
 
+class ConstantDependency(ReplaceSignatureDependency):
+    """Removes the parameter from the route and injects a fixed value.
+
+    The parameter disappears from the FastAPI route signature entirely;
+    the handler receives ``value`` at call time regardless of the request.
+
+    Example::
+
+        # standalone collection — no parent context
+        ParentPKFieldsDependency: ConstantDependency([])
+    """
+
+    def __init__(self, value: Any) -> None:  # noqa: D107
+        self.value = value
+
+    def get_new_params(self, original: Parameter) -> list[Parameter]:
+        """Return empty list — parameter is removed from the signature."""
+        return []
+
+    def pack_to_originals(self, original_name: str, **kwargs):
+        """Inject the fixed value under the original parameter name."""
+        kwargs[original_name] = self.value
+        return kwargs
+
+
 class CreateSchemaDependency(ReplaceSingleSignatureDependency):
     """Will be replaced with create_schema."""
 
@@ -181,8 +208,54 @@ class IncludeSchemaDependency(ReplaceSubDependency):
 class PKFieldsDependency(ReplaceWithParamsListDependency):
     """Will be replaced with pk_fields."""
 
-class ParentPKFieldsDependency(ReplaceWithParamsListDependency):
-    """Will be replaced with parent collection's pk_fields in sub-collections."""
+class ParentPKFieldsDependency(ReplaceSignatureDependency):
+    """Wraps a parent's PKFieldsDep and packs result into list[ParentRef].
+
+    Delegates param extraction to ``base_dep`` (the parent collection's own
+    ``PKFieldsDependency`` override), so path-param, auth-token, or any
+    custom resolution logic is reused automatically without duplication.
+
+    Chains recursively via ``parent_dep``, which carries the grandparent
+    context. Each node resolves one level; the full ancestor list grows
+    bottom-up: ``[ParentRef(grandparent, ...), ParentRef(parent, ...)]``.
+
+    A user can break the chain at any point by replacing ``parent_dep``
+    with a custom ``ReplaceSignatureDependency``.
+    """
+
+    def __init__(
+        self,
+        base_dep: "ReplaceSignatureDependency",
+        model: type,
+        parent_dep: "ReplaceSignatureDependency | None" = None,
+    ) -> None:
+        """Store the current-level resolver, model, and ancestor chain."""
+        self.base_dep = base_dep
+        self.parent_model = model
+        self.parent_dep = parent_dep
+
+    def get_new_params(self, original: Parameter) -> list[Parameter]:
+        """Grandparent params first, then current parent's params."""
+        ancestor_params = (
+            self.parent_dep.get_new_params(original)
+            if self.parent_dep else []
+        )
+        return ancestor_params + self.base_dep.get_new_params(original)
+
+    def pack_to_originals(self, original_name: str, **kwargs):
+        """Build list[ParentRef] from ancestor chain + current level."""
+        if self.parent_dep:
+            kwargs = self.parent_dep.pack_to_originals(original_name, **kwargs)
+            ancestor_refs: list = kwargs.pop(original_name)
+        else:
+            ancestor_refs = []
+        kwargs = self.base_dep.pack_to_originals(original_name, **kwargs)
+        pk_values = kwargs.pop(original_name)
+        kwargs[original_name] = [
+            *ancestor_refs,
+            ParentRef(model=self.parent_model, pk_values=pk_values),
+        ]
+        return kwargs
 
 class PaginatorDependency(ReplaceWithAnnotationDependency):
     """Will be replaced with the ORM-specific paginator."""
