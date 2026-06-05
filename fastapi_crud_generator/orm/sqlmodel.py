@@ -223,9 +223,23 @@ class SQLModelAdapter(ORMAdapterBase):
         )
 
     def get_base_list_queryset(
-        self, parent_refs: list[ParentRef] | None = None,  # noqa: ARG002
+        self, parent_refs: list[ParentRef] | None = None,
     ) -> Select:
-        return select(self.model)
+        """Build the base SELECT, joining parent models when provided.
+
+        Each ParentRef adds a JOIN (condition inferred from declared FKs)
+        and a WHERE on the parent's PK. Override for non-FK join paths.
+        """
+        stmt = select(self.model)
+        if not parent_refs:
+            return stmt
+        for parent_ref in parent_refs:
+            stmt = stmt.join(parent_ref.model)
+            for field, value in parent_ref.pk_values.model_dump().items():
+                stmt = stmt.where(
+                    getattr(parent_ref.model, field) == value,
+                )
+        return stmt
 
     def apply_queryset_filter(
         self,

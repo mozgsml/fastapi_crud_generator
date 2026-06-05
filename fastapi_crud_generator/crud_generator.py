@@ -221,8 +221,8 @@ class CRUDCollectionBase(ABC):
             else dict(self.router_kwargs or {})
         )
         self.router_kwargs["dependencies"] = self.dependencies
-        self._sub_collections: list[
-            tuple[str, CRUDCollectionBase, dict[str, str]]
+        self._nested_collections: list[
+            tuple[str, CRUDCollectionBase]
         ] = []
 
 
@@ -256,7 +256,7 @@ class CRUDCollectionBase(ABC):
             raise ValueError(msg)
 
     @property
-    def _resolved_overrides(
+    def resolved_overrides(
         self,
     ) -> dict[type[ReplaceSignatureDependency], ReplaceSignatureDependency]:
         """Merge default overrides with user-supplied dependency_overrides."""
@@ -295,7 +295,7 @@ class CRUDCollectionBase(ABC):
         new_parameters = []
 
         if overrides is None:
-            overrides = self._resolved_overrides
+            overrides = self.resolved_overrides
 
         overrided_params: dict[str, ReplaceSignatureDependency] = {}
 
@@ -436,59 +436,101 @@ class CRUDCollectionBase(ABC):
             for n, f in self.pk_fields.model_fields.items()
         )
 
-    def add_get_many_route(self, router: APIRouter) -> None:
+    def add_get_many_route(
+        self, router: APIRouter, overrides: dict | None = None,
+    ) -> None:
         """Register GET / on the router."""
         if self.public_schema and not self.disable_get_many:
             router.add_api_route(
                 "",
-                self.override_dependencies(self.get_many_handler),
+                self.override_dependencies(self.get_many_handler, overrides),
                 response_model=self.public_list_schema,
                 dependencies=self.get_many_dependencies,
             )
 
-    def add_get_one_route(self, router: APIRouter) -> None:
+    def add_get_one_route(
+        self, router: APIRouter, overrides: dict | None = None,
+    ) -> None:
         """Register GET /{pk} on the router."""
         if self.public_schema and not self.disable_get_one:
             router.add_api_route(
                 self.id_path,
-                self.override_dependencies(self.get_one_handler),
+                self.override_dependencies(self.get_one_handler, overrides),
                 response_model=self.public_schema,
                 generate_unique_id_function=self.generate_unique_id,
                 dependencies=self.get_one_dependencies,
             )
 
-    def add_create_one_route(self, router: APIRouter) -> None:
+    def add_create_one_route(
+        self, router: APIRouter, overrides: dict | None = None,
+    ) -> None:
         """Register POST / on the router."""
         if self.create_schema and not self.disable_create:
             router.add_api_route(
                 "",
-                self.override_dependencies(self.create_one_handler),
+                self.override_dependencies(
+                    self.create_one_handler, overrides,
+                ),
                 methods=["POST"],
                 response_model=self.create_out_schema,
                 dependencies=self.create_dependencies,
             )
 
-    def add_update_one_route(self, router: APIRouter) -> None:
+    def add_update_one_route(
+        self, router: APIRouter, overrides: dict | None = None,
+    ) -> None:
         """Register PATCH /{pk} on the router."""
         if self.update_schema and not self.disable_update:
             router.add_api_route(
                 self.id_path,
-                self.override_dependencies(self.update_one_handler),
+                self.override_dependencies(
+                    self.update_one_handler, overrides,
+                ),
                 methods=["PATCH"],
                 response_model=self.update_out_schema,
                 dependencies=self.update_dependencies,
             )
 
-    def add_delete_one_route(self, router: APIRouter) -> None:
+    def add_delete_one_route(
+        self, router: APIRouter, overrides: dict | None = None,
+    ) -> None:
         """Register DELETE /{pk} on the router."""
         if not self.disable_delete:
             router.add_api_route(
                 self.id_path,
-                self.override_dependencies(self.delete_one_handler),
+                self.override_dependencies(
+                    self.delete_one_handler, overrides,
+                ),
                 methods=["DELETE"],
                 response_model=self.public_schema,
                 dependencies=self.delete_dependencies,
             )
+
+    def add_nested_collection(
+        self, path: str, child: "CRUDCollectionBase",
+    ) -> None:
+        """Register child as a nested collection under this collection."""
+        self._nested_collections.append((path, child))
+
+    def get_nested_router(
+        self, child: "CRUDCollectionBase",
+    ) -> APIRouter:
+        """Build child's router with this collection's context injected."""
+        overrides = {
+            **child.resolved_overrides,
+            ParentPKFieldsDependency: ParentPKFieldsDependency(
+                base_dep=self.resolved_overrides[PKFieldsDependency],
+                model=self.orm_adapter.model,
+                parent_dep=self.resolved_overrides[ParentPKFieldsDependency],
+            ),
+        }
+        router = APIRouter()
+        child.add_get_many_route(router, overrides)
+        child.add_get_one_route(router, overrides)
+        child.add_create_one_route(router, overrides)
+        child.add_update_one_route(router, overrides)
+        child.add_delete_one_route(router, overrides)
+        return router
 
     def get_router(self, **router_kwargs) -> APIRouter:
         """Build and return an APIRouter with all enabled CRUD routes."""
@@ -501,6 +543,13 @@ class CRUDCollectionBase(ABC):
         self.add_create_one_route(router)
         self.add_update_one_route(router)
         self.add_delete_one_route(router)
+
+        for path, child in self._nested_collections:
+            prefix = self.id_path.rstrip("/") + "/" + path.lstrip("/")
+            router.include_router(
+                self.get_nested_router(child),
+                prefix=prefix,
+            )
 
         return router
 
