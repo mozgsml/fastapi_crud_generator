@@ -233,6 +233,7 @@ class ParentPKFieldsDependency(ReplaceSignatureDependency):
         self.base_dep = base_dep
         self.parent_model = model
         self.parent_dep = parent_dep
+        self._parent_param_names: set[str] = set()
 
     def get_new_params(self, original: Parameter) -> list[Parameter]:
         """Grandparent params first, then current parent's params."""
@@ -240,22 +241,31 @@ class ParentPKFieldsDependency(ReplaceSignatureDependency):
             self.parent_dep.get_new_params(original)
             if self.parent_dep else []
         )
+        self._parent_param_names = {p.name for p in ancestor_params}
         return ancestor_params + self.base_dep.get_new_params(original)
 
     def pack_to_originals(self, original_name: str, **kwargs):
         """Build list[ParentRef] from ancestor chain + current level."""
         if self.parent_dep:
-            kwargs = self.parent_dep.pack_to_originals(original_name, **kwargs)
-            ancestor_refs: list = kwargs.pop(original_name)
+            parent_result = self.parent_dep.pack_to_originals(
+                original_name,
+                **{k: v for k, v in kwargs.items()
+                   if k in self._parent_param_names},
+            )
+            ancestor_refs: list = parent_result.pop(original_name)
         else:
             ancestor_refs = []
-        kwargs = self.base_dep.pack_to_originals(original_name, **kwargs)
-        pk_values = kwargs.pop(original_name)
-        kwargs[original_name] = [
+        base_result = self.base_dep.pack_to_originals(
+            original_name,
+            **{k: v for k, v in kwargs.items()
+               if k not in self._parent_param_names},
+        )
+        pk_values = base_result.pop(original_name)
+        base_result[original_name] = [
             *ancestor_refs,
             ParentRef(model=self.parent_model, pk_values=pk_values),
         ]
-        return kwargs
+        return base_result
 
 class PaginatorDependency(ReplaceWithAnnotationDependency):
     """Will be replaced with the ORM-specific paginator."""

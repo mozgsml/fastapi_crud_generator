@@ -266,6 +266,7 @@ class TestParentPKFieldsDependency:
             model=FakeChildModel,
             parent_dep=grandparent,
         )
+        dep.get_new_params(make_param("parent_refs"))
         org_id = uuid.uuid4()
         user_id = uuid.uuid4()
         result = dep.pack_to_originals(
@@ -310,6 +311,7 @@ class TestParentPKFieldsDependency:
             model=FakeChildModel,
             parent_dep=grandparent,
         )
+        dep.get_new_params(make_param("parent_refs"))
         org_id = uuid.uuid4()
         user_id = uuid.uuid4()
         result = dep.pack_to_originals(
@@ -363,6 +365,7 @@ class TestParentPKFieldsDependency:
 
     def test_three_level_pack_to_originals(self):
         dep = self._three_level_dep()
+        dep.get_new_params(make_param("parent_refs"))
         org_id = uuid.uuid4()
         user_id = uuid.uuid4()
         game_id = uuid.uuid4()

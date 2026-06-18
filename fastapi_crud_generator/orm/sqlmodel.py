@@ -222,17 +222,14 @@ class SQLModelAdapter(ORMAdapterBase):
             ),
         )
 
-    def get_base_list_queryset(
-        self, parent_refs: list[ParentRef] | None = None,
+    def _apply_parent_refs(
+        self, stmt: Select, parent_refs: list[ParentRef],
     ) -> Select:
-        """Build the base SELECT, joining parent models when provided.
+        """JOIN to each parent and WHERE on its PK fields.
 
-        Each ParentRef adds a JOIN (condition inferred from declared FKs)
-        and a WHERE on the parent's PK. Override for non-FK join paths.
+        Join condition is inferred from declared FKs. Override for
+        non-FK joins or non-standard PK field names.
         """
-        stmt = select(self.model)
-        if not parent_refs:
-            return stmt
         for parent_ref in parent_refs:
             stmt = stmt.join(parent_ref.model)
             for field, value in parent_ref.pk_values.model_dump().items():
@@ -240,6 +237,24 @@ class SQLModelAdapter(ORMAdapterBase):
                     getattr(parent_ref.model, field) == value,
                 )
         return stmt
+
+    def get_base_list_queryset(
+        self, parent_refs: list[ParentRef] | None = None,
+    ) -> Select:
+        """Build the base SELECT for list ops, scoped to parent."""
+        stmt = select(self.model)
+        if not parent_refs:
+            return stmt
+        return self._apply_parent_refs(stmt, parent_refs)
+
+    def get_base_single_queryset(
+        self, parent_refs: list[ParentRef] | None = None,
+    ) -> Select:
+        """Build the base SELECT for single-record ops, scoped to parent."""
+        stmt = select(self.model)
+        if not parent_refs:
+            return stmt
+        return self._apply_parent_refs(stmt, parent_refs)
 
     def apply_queryset_filter(
         self,
@@ -286,17 +301,14 @@ class SQLModelAdapter(ORMAdapterBase):
     ) -> Select:
         return statement
 
-    def get_base_single_queryset(self) -> Select:
-        return select(self.model)
-
     async def get_one(
         self,
         pk_values: BaseModel,
         include_data: BaseModel,
-        parent_refs: list[ParentRef] | None = None,  # noqa: ARG002
+        parent_refs: list[ParentRef] | None = None,
     ) -> SQLModel | None:
         """Return a single object by primary key, or None if not found."""
-        statement = self.get_base_single_queryset()
+        statement = self.get_base_single_queryset(parent_refs=parent_refs)
         for key, value in pk_values.model_dump().items():
             statement = statement.where(getattr(self.model, key) == value)
         statement = self.include_related(statement, include_data)
