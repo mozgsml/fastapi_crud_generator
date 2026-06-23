@@ -328,6 +328,18 @@ class CRUDCollectionBase(ABC):
             else:
                 new_parameters.append(param)
 
+        seen: set[str] = set()
+        for p in new_parameters:
+            if p.name in seen:
+                msg = (
+                    f"Duplicate path parameter {p.name!r} detected "
+                    f"while building the signature for "
+                    f"{original_func.__name__!r}. This happens when "
+                    f"a child model has a PK field with the same "
+                    f"alias as a parent URL parameter."
+                )
+                raise ValueError(msg)
+            seen.add(p.name)
         new_sig = inspect.Signature(parameters=new_parameters)
 
         @wraps(original_func)

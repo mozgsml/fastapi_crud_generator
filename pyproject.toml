@@ -24,11 +24,24 @@ line-length = 79
 [tool.ruff.lint]
 ignore = ["EM101", "TRY003"]
 
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
 [dependency-groups]
 dev = [
     "pytest",
-    "sqlmodel",
+    "pytest-asyncio",
+    "httpx",
     "ipykernel>=7.2.0",
+]
+sqlmodel = [
+    "sqlmodel",
+]
+sqlite = [
+    "aiosqlite",
+]
+postgresql = [
+    "asyncpg",
 ]
 docs = [
     "mkdocs-material",
