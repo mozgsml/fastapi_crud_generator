@@ -49,7 +49,7 @@ class RouterStrategy(ABC):
         """Return the full overrides dict for this level."""
 
     @abstractmethod
-    def descend(
+    def get_child_strategy(
         self,
         pk_dep: ReplaceSignatureDependency,
         model: type,
@@ -66,7 +66,10 @@ class TopLevelStrategy(RouterStrategy):
     def get_overrides(self, resolved_overrides: dict) -> dict:
         return resolved_overrides
 
-    def descend(self, pk_dep: ReplaceSignatureDependency, model: type) -> "NestedStrategy":
+    def get_child_strategy(
+        self, pk_dep: ReplaceSignatureDependency, model: type,
+    ) -> "NestedStrategy":
+        """Return strategy for the first child nesting level."""
         parent_dep = ParentPKFieldsDependency(
             base_dep=pk_dep,
             model=model,
@@ -101,7 +104,10 @@ class NestedStrategy(RouterStrategy):
             ParentPKFieldsDependency: self._parent_dep,
         }
 
-    def descend(self, pk_dep: ReplaceSignatureDependency, model: type) -> "NestedStrategy":
+    def get_child_strategy(
+        self, pk_dep: ReplaceSignatureDependency, model: type,
+    ) -> "NestedStrategy":
+        """Return strategy for the next child nesting level."""
         new_dep = ParentPKFieldsDependency(
             base_dep=pk_dep,
             model=model,

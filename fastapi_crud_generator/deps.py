@@ -33,8 +33,8 @@ class ReplaceSignatureDependency(ABC):
     def get_new_params(self, original: Parameter) -> list[Parameter]:
         pass
 
-    def pack_to_originals(self, original_name: str, **kwargs):
-        return kwargs
+    def pack_to_originals(self, original_name: str, **kwargs) -> object:
+        return kwargs.get(original_name)
 
 class ReplaceSingleSignatureDependency(ReplaceSignatureDependency):
     def get_new_params(self, original: Parameter) -> list[Parameter]:
@@ -149,14 +149,12 @@ class ReplaceWithParamsListDependency(ReplaceSignatureDependency):
             new_parameters.append(new_param)
         return new_parameters
 
-    def pack_to_originals(self, original_name: str, **kwargs):
+    def pack_to_originals(self, original_name: str, **kwargs) -> BaseModel:
         attr_values: dict = {}
         for name, field_info in self.override.model_fields.items():
             param_name = field_info.validation_alias or name
-            attr_values[param_name] = kwargs.pop(param_name, None)
-        value = self.override.model_validate(attr_values)
-        kwargs[original_name] = value
-        return kwargs
+            attr_values[param_name] = kwargs.get(param_name)
+        return self.override.model_validate(attr_values)
 
 
 class ConstantDependency(ReplaceSignatureDependency):
@@ -178,10 +176,9 @@ class ConstantDependency(ReplaceSignatureDependency):
         """Return empty list — parameter is removed from the signature."""
         return []
 
-    def pack_to_originals(self, original_name: str, **kwargs):
-        """Inject the fixed value under the original parameter name."""
-        kwargs[original_name] = self.value
-        return kwargs
+    def pack_to_originals(self, original_name: str, **kwargs) -> object:
+        """Return the fixed value."""
+        return self.value
 
 
 class CreateSchemaDependency(ReplaceSingleSignatureDependency):
@@ -244,28 +241,25 @@ class ParentPKFieldsDependency(ReplaceSignatureDependency):
         self._parent_param_names = {p.name for p in ancestor_params}
         return ancestor_params + self.base_dep.get_new_params(original)
 
-    def pack_to_originals(self, original_name: str, **kwargs):
+    def pack_to_originals(self, original_name: str, **kwargs) -> list:
         """Build list[ParentRef] from ancestor chain + current level."""
         if self.parent_dep:
-            parent_result = self.parent_dep.pack_to_originals(
+            ancestor_refs: list = self.parent_dep.pack_to_originals(
                 original_name,
                 **{k: v for k, v in kwargs.items()
                    if k in self._parent_param_names},
             )
-            ancestor_refs: list = parent_result.pop(original_name)
         else:
             ancestor_refs = []
-        base_result = self.base_dep.pack_to_originals(
+        pk_values = self.base_dep.pack_to_originals(
             original_name,
             **{k: v for k, v in kwargs.items()
                if k not in self._parent_param_names},
         )
-        pk_values = base_result.pop(original_name)
-        base_result[original_name] = [
+        return [
             *ancestor_refs,
             ParentRef(model=self.parent_model, pk_values=pk_values),
         ]
-        return base_result
 
 class PaginatorDependency(ReplaceWithAnnotationDependency):
     """Will be replaced with the ORM-specific paginator."""

@@ -27,10 +27,13 @@ from fastapi_crud_generator.deps import (
 from fastapi_crud_generator.orm.base import ORMAdapterBase
 from fastapi_crud_generator.paginator import PaginatorBase
 from fastapi_crud_generator.schemas import PaginatorPage
+from fastapi_crud_generator.strategies import RouterStrategy, TopLevelStrategy
 from fastapi_crud_generator.utils import (
     create_filter_model,
     create_sort_schema,
 )
+
+_DEFAULT_STRATEGY: RouterStrategy = TopLevelStrategy()
 
 
 def _init_list_param(
@@ -293,12 +296,12 @@ class CRUDCollectionBase(ABC):
 
         parameters = list(sig.parameters.values())
         new_parameters = []
+        seen_names: set[str] = set()
 
         if overrides is None:
             overrides = self.resolved_overrides
 
         overrided_params: dict[str, ReplaceSignatureDependency] = {}
-
 
         for param in parameters:
             if (getattr(param.annotation, "__metadata__", None) is not None
@@ -321,31 +324,27 @@ class CRUDCollectionBase(ABC):
                     )
                     raise ValueError(msg)
                 override = overrides[annotation]
-                new_params = override.get_new_params(param)
-                new_parameters.extend(new_params)
-
+                fresh_params = [
+                    p for p in override.get_new_params(param)
+                    if p.name not in seen_names
+                ]
+                seen_names.update(p.name for p in fresh_params)
+                new_parameters.extend(fresh_params)
                 overrided_params[param.name] = override
             else:
-                new_parameters.append(param)
+                if param.name not in seen_names:
+                    seen_names.add(param.name)
+                    new_parameters.append(param)
 
-        seen: set[str] = set()
-        for p in new_parameters:
-            if p.name in seen:
-                msg = (
-                    f"Duplicate path parameter {p.name!r} detected "
-                    f"while building the signature for "
-                    f"{original_func.__name__!r}. This happens when "
-                    f"a child model has a PK field with the same "
-                    f"alias as a parent URL parameter."
-                )
-                raise ValueError(msg)
-            seen.add(p.name)
         new_sig = inspect.Signature(parameters=new_parameters)
+        handler_params = set(sig.parameters)
 
         @wraps(original_func)
         async def wrapper(**kwargs):
+            raw_kwargs = dict(kwargs)
             for name, override in overrided_params.items():
-                kwargs = override.pack_to_originals(name, **kwargs)
+                kwargs[name] = override.pack_to_originals(name, **raw_kwargs)
+            kwargs = {k: v for k, v in kwargs.items() if k in handler_params}
             return await original_func(**kwargs)
 
         wrapper.__signature__ = new_sig
@@ -449,9 +448,11 @@ class CRUDCollectionBase(ABC):
         )
 
     def add_get_many_route(
-        self, router: APIRouter, overrides: dict | None = None,
+        self, router: APIRouter, strategy: RouterStrategy | None = None,
     ) -> None:
         """Register GET / on the router."""
+        strategy = strategy or _DEFAULT_STRATEGY
+        overrides = strategy.get_overrides(self.resolved_overrides)
         if self.public_schema and not self.disable_get_many:
             router.add_api_route(
                 "",
@@ -461,12 +462,14 @@ class CRUDCollectionBase(ABC):
             )
 
     def add_get_one_route(
-        self, router: APIRouter, overrides: dict | None = None,
+        self, router: APIRouter, strategy: RouterStrategy | None = None,
     ) -> None:
         """Register GET /{pk} on the router."""
+        strategy = strategy or _DEFAULT_STRATEGY
+        overrides = strategy.get_overrides(self.resolved_overrides)
         if self.public_schema and not self.disable_get_one:
             router.add_api_route(
-                self.id_path,
+                strategy.compute_id_path(self.pk_fields),
                 self.override_dependencies(self.get_one_handler, overrides),
                 response_model=self.public_schema,
                 generate_unique_id_function=self.generate_unique_id,
@@ -474,9 +477,11 @@ class CRUDCollectionBase(ABC):
             )
 
     def add_create_one_route(
-        self, router: APIRouter, overrides: dict | None = None,
+        self, router: APIRouter, strategy: RouterStrategy | None = None,
     ) -> None:
         """Register POST / on the router."""
+        strategy = strategy or _DEFAULT_STRATEGY
+        overrides = strategy.get_overrides(self.resolved_overrides)
         if self.create_schema and not self.disable_create:
             router.add_api_route(
                 "",
@@ -489,12 +494,14 @@ class CRUDCollectionBase(ABC):
             )
 
     def add_update_one_route(
-        self, router: APIRouter, overrides: dict | None = None,
+        self, router: APIRouter, strategy: RouterStrategy | None = None,
     ) -> None:
         """Register PATCH /{pk} on the router."""
+        strategy = strategy or _DEFAULT_STRATEGY
+        overrides = strategy.get_overrides(self.resolved_overrides)
         if self.update_schema and not self.disable_update:
             router.add_api_route(
-                self.id_path,
+                strategy.compute_id_path(self.pk_fields),
                 self.override_dependencies(
                     self.update_one_handler, overrides,
                 ),
@@ -504,12 +511,14 @@ class CRUDCollectionBase(ABC):
             )
 
     def add_delete_one_route(
-        self, router: APIRouter, overrides: dict | None = None,
+        self, router: APIRouter, strategy: RouterStrategy | None = None,
     ) -> None:
         """Register DELETE /{pk} on the router."""
+        strategy = strategy or _DEFAULT_STRATEGY
+        overrides = strategy.get_overrides(self.resolved_overrides)
         if not self.disable_delete:
             router.add_api_route(
-                self.id_path,
+                strategy.compute_id_path(self.pk_fields),
                 self.override_dependencies(
                     self.delete_one_handler, overrides,
                 ),
@@ -524,44 +533,36 @@ class CRUDCollectionBase(ABC):
         """Register child as a nested collection under this collection."""
         self._nested_collections.append((path, child))
 
-    def get_nested_router(
-        self, child: "CRUDCollectionBase",
+    def get_router(
+        self,
+        strategy: RouterStrategy | None = None,
+        **router_kwargs: object,
     ) -> APIRouter:
-        """Build child's router with this collection's context injected."""
-        overrides = {
-            **child.resolved_overrides,
-            ParentPKFieldsDependency: ParentPKFieldsDependency(
-                base_dep=self.resolved_overrides[PKFieldsDependency],
-                model=self.orm_adapter.model,
-                parent_dep=self.resolved_overrides[ParentPKFieldsDependency],
-            ),
-        }
-        router = APIRouter()
-        child.add_get_many_route(router, overrides)
-        child.add_get_one_route(router, overrides)
-        child.add_create_one_route(router, overrides)
-        child.add_update_one_route(router, overrides)
-        child.add_delete_one_route(router, overrides)
-        return router
-
-    def get_router(self, **router_kwargs) -> APIRouter:
         """Build and return an APIRouter with all enabled CRUD routes."""
+        strategy = strategy or _DEFAULT_STRATEGY
         self.verify_orm_adapter()
         self.router_kwargs.update(router_kwargs)
         router = APIRouter(**self.router_kwargs)
 
-        self.add_get_many_route(router)
-        self.add_get_one_route(router)
-        self.add_create_one_route(router)
-        self.add_update_one_route(router)
-        self.add_delete_one_route(router)
+        self.add_get_many_route(router, strategy)
+        self.add_get_one_route(router, strategy)
+        self.add_create_one_route(router, strategy)
+        self.add_update_one_route(router, strategy)
+        self.add_delete_one_route(router, strategy)
 
-        for path, child in self._nested_collections:
-            prefix = self.id_path.rstrip("/") + "/" + path.lstrip("/")
-            router.include_router(
-                self.get_nested_router(child),
-                prefix=prefix,
+        if self._nested_collections:
+            overrides = strategy.get_overrides(self.resolved_overrides)
+            child_strategy = strategy.get_child_strategy(
+                pk_dep=overrides[PKFieldsDependency],
+                model=self.orm_adapter.model,
             )
+            id_path = strategy.compute_id_path(self.pk_fields)
+            for path, child in self._nested_collections:
+                prefix = id_path.rstrip("/") + "/" + path.lstrip("/")
+                router.include_router(
+                    child.get_router(strategy=child_strategy),
+                    prefix=prefix,
+                )
 
         return router
 
