@@ -261,10 +261,10 @@ class TestParentPKFieldsDependency:
             "parent_refs", org_id=org_id, user_id=user_id,
         )
         assert len(refs) == 2
-        assert refs[0].model is FakeModel
-        assert refs[0].pk_values.id == org_id  # type: ignore[attr-defined]
-        assert refs[1].model is FakeChildModel
-        assert refs[1].pk_values.id == user_id  # type: ignore[attr-defined]
+        assert refs[0].model is FakeChildModel
+        assert refs[0].pk_values.id == user_id  # type: ignore[attr-defined]
+        assert refs[1].model is FakeModel
+        assert refs[1].pk_values.id == org_id  # type: ignore[attr-defined]
 
     def test_with_constant_dependency_as_parent_dep(self):
         base = PKFieldsDependency(UserPK)
@@ -331,9 +331,9 @@ class TestParentPKFieldsDependency:
         )
         assert len(refs) == 3
         assert [r.model for r in refs] == [
-            FakeModel, FakeChildModel, FakeGrandChildModel,
+            FakeGrandChildModel, FakeChildModel, FakeModel,
         ]
-        assert [r.pk_values.id for r in refs] == [org_id, user_id, game_id]
+        assert [r.pk_values.id for r in refs] == [game_id, user_id, org_id]
 
     def test_constant_dependency_as_parent_dep_with_prebuilt_refs(self):
         # Break the chain with a fixed, non-empty ancestor list.
@@ -348,9 +348,9 @@ class TestParentPKFieldsDependency:
         user_id = uuid.uuid4()
         refs = dep.pack_to_originals("parent_refs", user_id=user_id)
         assert len(refs) == 2
-        assert refs[0] is preset[0]
-        assert refs[1].model is FakeChildModel
-        assert refs[1].pk_values.id == user_id  # type: ignore[attr-defined]
+        assert refs[0].model is FakeChildModel
+        assert refs[0].pk_values.id == user_id  # type: ignore[attr-defined]
+        assert refs[1] is preset[0]
 
     def test_composite_parent_pk(self):
         dep = ParentPKFieldsDependency(

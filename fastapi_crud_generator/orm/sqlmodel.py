@@ -9,7 +9,12 @@ from pydantic_core import PydanticUndefined
 from fastapi_crud_generator.config import CRUDConfigDict
 from fastapi_crud_generator.orm.base import ORMAdapterBase
 from fastapi_crud_generator.paginator import PaginatorBase
-from fastapi_crud_generator.schemas import PaginatorPage, ParentRef
+from fastapi_crud_generator.schemas import (
+    NotFoundError,
+    PaginatorPage,
+    ParentNotFoundError,
+    ParentRef,
+)
 from fastapi_crud_generator.utils import slice_model
 
 try:
@@ -109,11 +114,28 @@ class SQLModelAdapter(ORMAdapterBase):
             if field_info.exclude is not True
         }
 
-    def get_default_create_fields(self) -> set[str]:
-        """Return field names except PKs and server-generated fields."""
-        auto_fields = (
-            self.get_pk_field_names() | self.get_server_generated_field_names()
-        )
+    def get_default_create_fields(
+        self, exclude_related: list[type] | None = None,
+    ) -> set[str]:
+        """Return field names except auto-generated PKs and server fields.
+
+        A PK field is excluded when it has no default (auto-increment/uuid4)
+        or when it is a FK pointing to a model in ``exclude_related`` —
+        meaning its value comes from the parent URL, not the request body.
+        """
+        pk_names = self.get_pk_field_names()
+        related_tables = {m.__table__ for m in (exclude_related or [])}
+        fk_from_related = {
+            fk.parent.name
+            for fk in self.model.__table__.foreign_keys
+            if fk.column.table in related_tables
+        }
+        auto_pks = {
+            name
+            for name, field_info in self.model.model_fields.items()
+            if name in pk_names and not field_info.is_required()
+        }
+        auto_fields = auto_pks | fk_from_related | self.get_server_generated_field_names()
         return {
             name
             for name in self.model.model_fields
@@ -149,13 +171,14 @@ class SQLModelAdapter(ORMAdapterBase):
         self,
         fields: set[str] | None = None,
         base_fields: set[str] | None = None,
+        exclude_related: list[type] | None = None,
     ) -> type[BaseModel]:
         crud_config = self.get_crud_config()
         resolved_create = fields or (crud_config.create_fields or None)
         resolved_base = base_fields or (crud_config.base_fields or None)
 
         if resolved_create is None and resolved_base is None:
-            effective_fields = self.get_default_create_fields()
+            effective_fields = self.get_default_create_fields(exclude_related)
         else:
             effective_fields = (
                 (resolved_create or set()) | (resolved_base or set())
@@ -168,6 +191,15 @@ class SQLModelAdapter(ORMAdapterBase):
             exclude_metadata=(FieldInfoMetadata,),
         )
 
+    def get_default_update_fields(self) -> set[str]:
+        """Return field names except all PKs and server-generated fields.
+
+        Unlike create, ALL PK fields are excluded — they come from the URL
+        path and must never be changed via the request body.
+        """
+        excluded = self.get_pk_field_names() | self.get_server_generated_field_names()
+        return {name for name in self.model.model_fields if name not in excluded}
+
     def generate_update_schema(
         self,
         fields: set[str] | None = None,
@@ -178,7 +210,7 @@ class SQLModelAdapter(ORMAdapterBase):
         resolved_base = base_fields or (crud_config.base_fields or None)
 
         if resolved_update is None and resolved_base is None:
-            effective_fields = self.get_default_create_fields()
+            effective_fields = self.get_default_update_fields()
         else:
             effective_fields = (
                 (resolved_update or set()) | (resolved_base or set())
@@ -331,14 +363,43 @@ class SQLModelAdapter(ORMAdapterBase):
         async with self.session() as session:
             return await paginator.paginate(session, statement)
 
+    def _fk_values_from_parent(self, parent_ref: ParentRef) -> dict:
+        """Map parent PK values to child FK column names via declared FKs."""
+        parent_table = parent_ref.model.__table__
+        result = {}
+        for fk in self.model.__table__.foreign_keys:
+            if fk.column.table is parent_table:
+                value = getattr(parent_ref.pk_values, fk.column.name, None)
+                if value is not None:
+                    result[fk.parent.name] = value
+        return result
+
+    def _verify_parent_chain_stmt(
+        self, parent_refs: list[ParentRef],
+    ) -> Select:
+        """SELECT to check direct parent exists within the ancestor chain."""
+        direct = parent_refs[0]
+        stmt = select(direct.model)
+        stmt = self._apply_parent_refs(stmt, parent_refs[1:])
+        for field, value in direct.pk_values.model_dump().items():
+            stmt = stmt.where(getattr(direct.model, field) == value)
+        return stmt
+
     async def create_one(
         self,
         data: BaseModel,
-        parent_refs: list[ParentRef] | None = None,  # noqa: ARG002
+        parent_refs: list[ParentRef] | None = None,
     ) -> SQLModel:
-        """Persist a new object and return it."""
-        item = self.model.model_validate(data)
+        """Persist a new object, verifying the parent chain first."""
+        data_dict = data.model_dump()
         async with self.session() as session:
+            if parent_refs:
+                stmt = self._verify_parent_chain_stmt(parent_refs)
+                if (await session.exec(stmt)).first() is None:
+                    raise ParentNotFoundError
+                for ref in parent_refs:
+                    data_dict.update(self._fk_values_from_parent(ref))
+            item = self.model.model_validate(data_dict)
             session.add(item)
             await session.commit()
             await session.refresh(item)
@@ -348,25 +409,34 @@ class SQLModelAdapter(ORMAdapterBase):
         self,
         pk_values: BaseModel,
         data: BaseModel,
-        parent_refs: list[ParentRef] | None = None,  # noqa: ARG002
+        parent_refs: list[ParentRef] | None = None,
     ) -> None:
-        """Update an existing object by primary key."""
-        new_values = data.model_dump(exclude_unset=True)
-        statement = update(self.model)
-        for key, value in pk_values.model_dump().items():
-            statement = statement.where(getattr(self.model, key) == value)
-        statement = statement.values(**new_values)
+        """Update an existing object by primary key, scoped to parent chain."""
+        in_scope = True
         async with self.session() as session:
-            await session.exec(statement)
-            await session.commit()
+            if parent_refs:
+                check = self.get_base_single_queryset(parent_refs=parent_refs)
+                for key, value in pk_values.model_dump().items():
+                    check = check.where(getattr(self.model, key) == value)
+                in_scope = (await session.exec(check)).first() is not None
+            if in_scope:
+                new_values = data.model_dump(exclude_unset=True)
+                statement = update(self.model)
+                for key, value in pk_values.model_dump().items():
+                    statement = statement.where(getattr(self.model, key) == value)
+                statement = statement.values(**new_values)
+                await session.exec(statement)
+                await session.commit()
+        if not in_scope:
+            raise NotFoundError
 
     async def delete_one(
         self,
         pk_values: BaseModel,
-        parent_refs: list[ParentRef] | None = None,  # noqa: ARG002
+        parent_refs: list[ParentRef] | None = None,
     ) -> SQLModel | None:
-        """Delete an object by primary key and return it, or None."""
-        statement = self.get_base_single_queryset()
+        """Delete an object by primary key, scoped to parent chain."""
+        statement = self.get_base_single_queryset(parent_refs=parent_refs)
         for key, value in pk_values.model_dump().items():
             statement = statement.where(getattr(self.model, key) == value)
         async with self.session() as session:

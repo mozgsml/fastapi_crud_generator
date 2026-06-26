@@ -6,14 +6,30 @@ Demonstrates:
 - Composite PK:      PostTranslation(post_id, language)
 - Composite FK:      PostTranslationTag → PostTranslation
 - M2M:               PostTranslation ↔ Tag via PostTranslationTag
+- Server defaults:   created_at/updated_at on Category and Post
 """
+from datetime import datetime
+
+import sqlalchemy as sa
 from sqlalchemy import ForeignKeyConstraint
-from sqlmodel import Field, SQLModel
+from sqlmodel import Column, Field, SQLModel
 
 
 class Category(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str
+    created_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(sa.DateTime, server_default=sa.func.now()),
+    )
+    updated_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(
+            sa.DateTime,
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
+        ),
+    )
 
 
 class Thread(SQLModel, table=True):
@@ -26,6 +42,18 @@ class Post(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     thread_id: int = Field(foreign_key="thread.id")
     slug: str
+    created_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(sa.DateTime, server_default=sa.func.now()),
+    )
+    updated_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(
+            sa.DateTime,
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
+        ),
+    )
 
 
 class Tag(SQLModel, table=True):
@@ -39,6 +67,18 @@ class PostTranslation(SQLModel, table=True):
     post_id: int = Field(primary_key=True, foreign_key="post.id")
     language: str = Field(primary_key=True)
     body: str
+    created_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(sa.DateTime, server_default=sa.func.now()),
+    )
+    updated_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(
+            sa.DateTime,
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
+        ),
+    )
 
 
 class PostTranslationTag(SQLModel, table=True):

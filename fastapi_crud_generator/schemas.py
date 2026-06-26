@@ -18,6 +18,14 @@ class Message(BaseModel):
     message: str
 
 
+class NotFoundError(Exception):
+    """Raised by ORM adapters when a requested resource does not exist."""
+
+
+class ParentNotFoundError(NotFoundError):
+    """Raised when a parent resource does not exist or is not accessible."""
+
+
 @dataclass
 class ParentRef(Generic[ModelT]):
     """Reference to a parent collection item in a nested route.

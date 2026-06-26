@@ -10,6 +10,7 @@ further ``NestedStrategy.descend()`` calls as the router tree is built.
 """
 import inspect
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
@@ -19,6 +20,9 @@ from fastapi_crud_generator.deps import (
     PKFieldsDependency,
     ReplaceSignatureDependency,
 )
+
+if TYPE_CHECKING:
+    from fastapi_crud_generator.orm.base import ORMAdapterBase
 
 _DUMMY_PARAM = inspect.Parameter("_", inspect.Parameter.POSITIONAL_OR_KEYWORD)
 
@@ -55,6 +59,15 @@ class RouterStrategy(ABC):
         model: type,
     ) -> "RouterStrategy":
         """Return the strategy for the next (child) nesting level."""
+
+    def get_create_schema(
+        self,
+        orm_adapter: "ORMAdapterBase",
+        fields: set[str] | None,
+        base_fields: set[str] | None,
+    ) -> type[BaseModel]:
+        """Generate a create schema appropriate for this routing context."""
+        return orm_adapter.generate_create_schema(fields, base_fields)
 
 
 class TopLevelStrategy(RouterStrategy):
@@ -117,3 +130,15 @@ class NestedStrategy(RouterStrategy):
             p.name for p in new_dep.get_new_params(_DUMMY_PARAM)
         )
         return NestedStrategy(ancestor_names=new_names, parent_dep=new_dep)
+
+    def get_create_schema(
+        self,
+        orm_adapter: "ORMAdapterBase",
+        fields: set[str] | None,
+        base_fields: set[str] | None,
+    ) -> type[BaseModel]:
+        """Exclude FK+PK fields pointing to the direct parent model."""
+        return orm_adapter.generate_create_schema(
+            fields, base_fields,
+            exclude_related=[self._parent_dep.parent_model],
+        )

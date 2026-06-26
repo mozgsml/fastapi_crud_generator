@@ -257,8 +257,8 @@ class ParentPKFieldsDependency(ReplaceSignatureDependency):
                if k not in self._parent_param_names},
         )
         return [
-            *ancestor_refs,
             ParentRef(model=self.parent_model, pk_values=pk_values),
+            *ancestor_refs,
         ]
 
 class PaginatorDependency(ReplaceWithAnnotationDependency):

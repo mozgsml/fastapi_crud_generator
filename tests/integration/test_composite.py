@@ -19,7 +19,7 @@ async def test_create_and_get_translation(client):
 
     r = await client.post(
         f"/posts/{post_id}/translations",
-        json={"post_id": post_id, "language": "en", "body": "Hello"},
+        json={"language": "en", "body": "Hello"},
     )
     assert r.status_code == 200
     assert r.json()["language"] == "en"
@@ -35,15 +35,15 @@ async def test_translations_scoped_to_post(client):
 
     await client.post(
         f"/posts/{post_a['id']}/translations",
-        json={"post_id": post_a["id"], "language": "en", "body": "Hello"},
+        json={"language": "en", "body": "Hello"},
     )
     await client.post(
         f"/posts/{post_a['id']}/translations",
-        json={"post_id": post_a["id"], "language": "ru", "body": "Привет"},
+        json={"language": "ru", "body": "Привет"},
     )
     await client.post(
         f"/posts/{post_b['id']}/translations",
-        json={"post_id": post_b["id"], "language": "en", "body": "Hi"},
+        json={"language": "en", "body": "Hi"},
     )
 
     r = await client.get(f"/posts/{post_a['id']}/translations")

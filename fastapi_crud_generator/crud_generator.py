@@ -26,7 +26,11 @@ from fastapi_crud_generator.deps import (
 )
 from fastapi_crud_generator.orm.base import ORMAdapterBase
 from fastapi_crud_generator.paginator import PaginatorBase
-from fastapi_crud_generator.schemas import PaginatorPage
+from fastapi_crud_generator.schemas import (
+    NotFoundError,
+    PaginatorPage,
+    ParentNotFoundError,
+)
 from fastapi_crud_generator.strategies import RouterStrategy, TopLevelStrategy
 from fastapi_crud_generator.utils import (
     create_filter_model,
@@ -153,13 +157,7 @@ class CRUDCollectionBase(ABC):
                 self.public_fields, self.base_fields,
             )
         )
-        self.create_schema = (
-            create_schema
-            or self.create_schema
-            or self.orm_adapter.generate_create_schema(
-                self.create_fields, self.base_fields,
-            )
-        )
+        self.create_schema = create_schema or self.create_schema
         self.update_schema = (
             update_schema
             or self.update_schema
@@ -258,13 +256,17 @@ class CRUDCollectionBase(ABC):
             )
             raise ValueError(msg)
 
-    @property
-    def resolved_overrides(
+    def get_resolved_overrides(
         self,
+        strategy: RouterStrategy | None = None,
     ) -> dict[type[ReplaceSignatureDependency], ReplaceSignatureDependency]:
         """Merge default overrides with user-supplied dependency_overrides."""
+        strategy = strategy or _DEFAULT_STRATEGY
+        create_schema = self.create_schema or strategy.get_create_schema(
+            self.orm_adapter, self.create_fields, self.base_fields,
+        )
         defaults = {
-            CreateSchemaDependency: CreateSchemaDependency(self.create_schema),
+            CreateSchemaDependency: CreateSchemaDependency(create_schema),
             UpdateSchemaDependency: UpdateSchemaDependency(self.update_schema),
             PublicSchemaDependency: PublicSchemaDependency(self.public_schema),
             PublicListSchemaDependency: PublicListSchemaDependency(
@@ -299,7 +301,7 @@ class CRUDCollectionBase(ABC):
         seen_names: set[str] = set()
 
         if overrides is None:
-            overrides = self.resolved_overrides
+            overrides = self.get_resolved_overrides()
 
         overrided_params: dict[str, ReplaceSignatureDependency] = {}
 
@@ -402,9 +404,14 @@ class CRUDCollectionBase(ABC):
         parent_refs: Annotated[list, ParentPKFieldsDependency],
     ) -> object:
         """Handle POST / — persist a new object and return it."""
-        return await self.orm_adapter.create_one(
-            create_data, parent_refs=parent_refs,
-        )
+        try:
+            return await self.orm_adapter.create_one(
+                create_data, parent_refs=parent_refs,
+            )
+        except ParentNotFoundError as exc:
+            raise HTTPException(
+                status_code=404, detail="Parent not found",
+            ) from exc
 
     async def update_one_handler(
         self,
@@ -413,9 +420,12 @@ class CRUDCollectionBase(ABC):
         parent_refs: Annotated[list, ParentPKFieldsDependency],
     ) -> None:
         """Handle PATCH /{pk} — partially update an existing object."""
-        await self.orm_adapter.update_one(
-            pk_field_values, update_data, parent_refs=parent_refs,
-        )
+        try:
+            await self.orm_adapter.update_one(
+                pk_field_values, update_data, parent_refs=parent_refs,
+            )
+        except NotFoundError as exc:
+            raise HTTPException(status_code=404, detail="Not found") from exc
 
     async def delete_one_handler(
         self,
@@ -452,7 +462,7 @@ class CRUDCollectionBase(ABC):
     ) -> None:
         """Register GET / on the router."""
         strategy = strategy or _DEFAULT_STRATEGY
-        overrides = strategy.get_overrides(self.resolved_overrides)
+        overrides = strategy.get_overrides(self.get_resolved_overrides(strategy))
         if self.public_schema and not self.disable_get_many:
             router.add_api_route(
                 "",
@@ -466,7 +476,7 @@ class CRUDCollectionBase(ABC):
     ) -> None:
         """Register GET /{pk} on the router."""
         strategy = strategy or _DEFAULT_STRATEGY
-        overrides = strategy.get_overrides(self.resolved_overrides)
+        overrides = strategy.get_overrides(self.get_resolved_overrides(strategy))
         if self.public_schema and not self.disable_get_one:
             router.add_api_route(
                 strategy.compute_id_path(self.pk_fields),
@@ -481,8 +491,8 @@ class CRUDCollectionBase(ABC):
     ) -> None:
         """Register POST / on the router."""
         strategy = strategy or _DEFAULT_STRATEGY
-        overrides = strategy.get_overrides(self.resolved_overrides)
-        if self.create_schema and not self.disable_create:
+        overrides = strategy.get_overrides(self.get_resolved_overrides(strategy))
+        if not self.disable_create:
             router.add_api_route(
                 "",
                 self.override_dependencies(
@@ -491,6 +501,7 @@ class CRUDCollectionBase(ABC):
                 methods=["POST"],
                 response_model=self.create_out_schema,
                 dependencies=self.create_dependencies,
+                responses={404: {"description": "Parent not found"}},
             )
 
     def add_update_one_route(
@@ -498,7 +509,7 @@ class CRUDCollectionBase(ABC):
     ) -> None:
         """Register PATCH /{pk} on the router."""
         strategy = strategy or _DEFAULT_STRATEGY
-        overrides = strategy.get_overrides(self.resolved_overrides)
+        overrides = strategy.get_overrides(self.get_resolved_overrides(strategy))
         if self.update_schema and not self.disable_update:
             router.add_api_route(
                 strategy.compute_id_path(self.pk_fields),
@@ -515,7 +526,7 @@ class CRUDCollectionBase(ABC):
     ) -> None:
         """Register DELETE /{pk} on the router."""
         strategy = strategy or _DEFAULT_STRATEGY
-        overrides = strategy.get_overrides(self.resolved_overrides)
+        overrides = strategy.get_overrides(self.get_resolved_overrides(strategy))
         if not self.disable_delete:
             router.add_api_route(
                 strategy.compute_id_path(self.pk_fields),
@@ -551,7 +562,7 @@ class CRUDCollectionBase(ABC):
         self.add_delete_one_route(router, strategy)
 
         if self._nested_collections:
-            overrides = strategy.get_overrides(self.resolved_overrides)
+            overrides = strategy.get_overrides(self.get_resolved_overrides(strategy))
             child_strategy = strategy.get_child_strategy(
                 pk_dep=overrides[PKFieldsDependency],
                 model=self.orm_adapter.model,

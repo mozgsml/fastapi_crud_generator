@@ -54,6 +54,7 @@ class ORMAdapterBase(ABC):
         self,
         fields: set[str] | None = None,
         base_fields: set[str] | None = None,
+        exclude_related: list[type] | None = None,
     ) -> type[BaseModel]:
         """Build a Pydantic model for object creation payloads.
 
