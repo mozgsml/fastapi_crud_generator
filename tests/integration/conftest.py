@@ -5,13 +5,24 @@ A backend is skipped silently if its package is not installed
 or its env var is not set.
 """
 import os
+from typing import Annotated
 
 import pytest
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from httpx import ASGITransport, AsyncClient
+from pydantic import BaseModel
 
 from fastapi_crud_generator import CRUDCollection
+from fastapi_crud_generator.deps import PKFieldsDependency
 from tests.integration.backends import MYSQL_URL_ENV, POSTGRES_URL_ENV
+
+
+class _StubUserPK(BaseModel):
+    id: int
+
+
+async def _get_me_pk() -> _StubUserPK:
+    return _StubUserPK(id=1)
 
 BACKENDS = []
 
@@ -83,5 +94,76 @@ def forum_app(make_adapter, forum_models):
 async def client(forum_app):
     async with AsyncClient(
         transport=ASGITransport(app=forum_app), base_url="http://test",
+    ) as c:
+        yield c
+
+
+@pytest.fixture
+def user_posts_app(make_adapter, forum_models):
+    """App demonstrating /users/me pattern (stub PK dep) + nested posts."""
+    app = FastAPI()
+
+    # Category → Thread — needed so tests can satisfy Post.thread_id FK
+    thread_crud = CRUDCollection(orm_adapter=make_adapter(forum_models.Thread))
+    category_crud = CRUDCollection(
+        orm_adapter=make_adapter(forum_models.Category),
+    )
+    category_crud.add_nested_collection("/threads", thread_crud)
+    app.include_router(category_crud.get_router(prefix="/categories"))
+
+    class _UserMeCRUD(CRUDCollection):
+        """User CRUD where single-item routes use the stub as PK."""
+
+        dependency_overrides = {  # noqa: RUF012
+            PKFieldsDependency: Annotated[_StubUserPK, Depends(_get_me_pk)],
+        }
+
+        @property
+        def id_path(self) -> str:
+            return "/me"
+
+    user_me_crud = _UserMeCRUD(orm_adapter=make_adapter(forum_models.User))
+    me_posts_crud = CRUDCollection(orm_adapter=make_adapter(forum_models.Post))
+    user_me_crud.add_nested_collection("/posts", me_posts_crud)
+    app.include_router(user_me_crud.get_router(prefix="/users"))
+
+    return app
+
+
+@pytest.fixture
+async def user_client(user_posts_app):
+    async with AsyncClient(
+        transport=ASGITransport(app=user_posts_app), base_url="http://test",
+    ) as c:
+        yield c
+
+
+@pytest.fixture
+def root_posts_app(make_adapter, forum_models):
+    """Post at root — Thread and Category added as ancestors via add_nested_collection."""
+    app = FastAPI()
+
+    post_crud = CRUDCollection(orm_adapter=make_adapter(forum_models.Post))
+    thread_crud = CRUDCollection(orm_adapter=make_adapter(forum_models.Thread))
+    category_crud = CRUDCollection(
+        orm_adapter=make_adapter(forum_models.Category),
+    )
+
+    # Bidirectional: FK metadata determines direction automatically
+    post_crud.add_nested_collection("/threads", thread_crud)
+    thread_crud.add_nested_collection("/categories", category_crud)
+
+    # All three registered at flat roots; parent chains inferred from FKs
+    app.include_router(category_crud.get_router(prefix="/categories"))
+    app.include_router(thread_crud.get_router(prefix="/threads"))
+    app.include_router(post_crud.get_router(prefix="/posts"))
+
+    return app
+
+
+@pytest.fixture
+async def root_client(root_posts_app):
+    async with AsyncClient(
+        transport=ASGITransport(app=root_posts_app), base_url="http://test",
     ) as c:
         yield c

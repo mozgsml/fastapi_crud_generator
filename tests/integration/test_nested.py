@@ -111,3 +111,19 @@ async def test_fk_field_not_required_in_nested_create(client):
     )
     assert r.status_code == 200
     assert r.json()["category_id"] == cat["id"]
+
+
+async def test_fk_column_name_differs_from_parent_pk(client) -> None:
+    """Post.thread_id (child FK) != Thread.id (parent PK) — must map via metadata."""
+    cat = (await client.post("/categories", json={"name": "Python"})).json()
+    thread = (await client.post(
+        f"/categories/{cat['id']}/threads",
+        json={"title": "Async"},
+    )).json()
+
+    r = await client.post(
+        f"/categories/{cat['id']}/threads/{thread['id']}/posts",
+        json={"slug": "asyncio"},
+    )
+    assert r.status_code == 200
+    assert r.json()["thread_id"] == thread["id"]

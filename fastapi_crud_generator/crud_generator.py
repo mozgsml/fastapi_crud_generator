@@ -552,8 +552,8 @@ class CRUDCollectionBase(ABC):
         """Build and return an APIRouter with all enabled CRUD routes."""
         strategy = strategy or _DEFAULT_STRATEGY
         self.verify_orm_adapter()
-        self.router_kwargs.update(router_kwargs)
-        router = APIRouter(**self.router_kwargs)
+        effective_kwargs = {**self.router_kwargs, **router_kwargs}
+        router = APIRouter(**effective_kwargs)
 
         self.add_get_many_route(router, strategy)
         self.add_get_one_route(router, strategy)

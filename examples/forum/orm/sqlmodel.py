@@ -15,6 +15,11 @@ from sqlalchemy import ForeignKeyConstraint
 from sqlmodel import Column, Field, SQLModel
 
 
+class User(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    username: str
+
+
 class Category(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str
@@ -41,6 +46,7 @@ class Thread(SQLModel, table=True):
 class Post(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     thread_id: int = Field(foreign_key="thread.id")
+    author_id: int | None = Field(default=None, foreign_key="user.id")
     slug: str
     created_at: datetime | None = Field(
         default=None,

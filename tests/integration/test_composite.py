@@ -5,15 +5,15 @@ async def _create_post(client, slug: str) -> dict:
     cat = (await client.post("/categories", json={"name": "Python"})).json()
     thread = (await client.post(
         f"/categories/{cat['id']}/threads",
-        json={"category_id": cat["id"], "title": "Async"},
+        json={"title": "Async"},
     )).json()
     return (await client.post(
         f"/categories/{cat['id']}/threads/{thread['id']}/posts",
-        json={"thread_id": thread["id"], "slug": slug},
+        json={"slug": slug},
     )).json()
 
 
-async def test_create_and_get_translation(client):
+async def test_create_and_get_translation(client) -> None:
     post = await _create_post(client, "asyncio")
     post_id = post["id"]
 
@@ -29,7 +29,7 @@ async def test_create_and_get_translation(client):
     assert r.json()["body"] == "Hello"
 
 
-async def test_translations_scoped_to_post(client):
+async def test_translations_scoped_to_post(client) -> None:
     post_a = await _create_post(client, "asyncio")
     post_b = await _create_post(client, "trio")
 
@@ -53,13 +53,13 @@ async def test_translations_scoped_to_post(client):
     assert {t["language"] for t in data["data"]} == {"en", "ru"}
 
 
-async def test_update_translation(client):
+async def test_update_translation(client) -> None:
     post = await _create_post(client, "asyncio")
     post_id = post["id"]
 
     await client.post(
         f"/posts/{post_id}/translations",
-        json={"post_id": post_id, "language": "en", "body": "Old"},
+        json={"language": "en", "body": "Old"},
     )
 
     r = await client.patch(
@@ -70,3 +70,33 @@ async def test_update_translation(client):
 
     r = await client.get(f"/posts/{post_id}/translations/en")
     assert r.json()["body"] == "Updated"
+
+
+async def test_delete_translation(client) -> None:
+    post = await _create_post(client, "asyncio")
+    post_id = post["id"]
+
+    await client.post(
+        f"/posts/{post_id}/translations",
+        json={"language": "en", "body": "Hello"},
+    )
+
+    r = await client.delete(f"/posts/{post_id}/translations/en")
+    assert r.status_code == 200
+
+    r = await client.get(f"/posts/{post_id}/translations/en")
+    assert r.status_code == 404
+
+
+async def test_delete_translation_wrong_parent_returns_404(client) -> None:
+    """Deleting a translation via a different post's URL must return 404."""
+    post_a = await _create_post(client, "asyncio")
+    post_b = await _create_post(client, "trio")
+
+    await client.post(
+        f"/posts/{post_a['id']}/translations",
+        json={"language": "en", "body": "Hello"},
+    )
+
+    r = await client.delete(f"/posts/{post_b['id']}/translations/en")
+    assert r.status_code == 404
