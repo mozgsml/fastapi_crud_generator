@@ -1,4 +1,31 @@
+from collections.abc import Sequence
 from dataclasses import dataclass, field
+from typing import Any, TypedDict
+
+from fastapi.params import Depends
+
+
+class RouterKwargs(TypedDict, total=False):
+    """Typed subset of ``APIRouter.include_router`` keyword arguments."""
+
+    tags: list[str]
+    dependencies: Sequence[Depends]
+    deprecated: bool
+    include_in_schema: bool
+    responses: dict[int | str, dict[str, Any]]
+
+
+@dataclass
+class NestedConfig:
+    """Configuration for a nested collection.
+
+    Passed as ``config`` to ``add_nested_collection``.
+
+    ``router_kwargs`` accepts any ``APIRouter.include_router`` parameters
+    (tags, dependencies, deprecated, include_in_schema, responses).
+    """
+
+    router_kwargs: RouterKwargs = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

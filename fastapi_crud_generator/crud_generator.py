@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.routing import APIRoute
 from pydantic import BaseModel, Field, create_model
 
+from fastapi_crud_generator.config import NestedConfig
 from fastapi_crud_generator.deps import (
     ConstantDependency,
     CreateSchemaDependency,
@@ -333,10 +334,9 @@ class CRUDCollectionBase(ABC):
                 seen_names.update(p.name for p in fresh_params)
                 new_parameters.extend(fresh_params)
                 overrided_params[param.name] = override
-            else:
-                if param.name not in seen_names:
-                    seen_names.add(param.name)
-                    new_parameters.append(param)
+            elif param.name not in seen_names:
+                seen_names.add(param.name)
+                new_parameters.append(param)
 
         new_sig = inspect.Signature(parameters=new_parameters)
         handler_params = set(sig.parameters)
@@ -539,10 +539,15 @@ class CRUDCollectionBase(ABC):
             )
 
     def add_nested_collection(
-        self, path: str, child: "CRUDCollectionBase",
+        self,
+        path: str,
+        child: "CRUDCollectionBase",
+        config: NestedConfig | None = None,
     ) -> None:
         """Register child as a nested collection under this collection."""
-        self._nested_collections.append((path, child))
+        self._nested_collections.append(
+            (path, child, config or NestedConfig()),
+        )
 
     def get_router(
         self,
@@ -568,11 +573,12 @@ class CRUDCollectionBase(ABC):
                 model=self.orm_adapter.model,
             )
             id_path = strategy.compute_id_path(self.pk_fields)
-            for path, child in self._nested_collections:
+            for path, child, cfg in self._nested_collections:
                 prefix = id_path.rstrip("/") + "/" + path.lstrip("/")
                 router.include_router(
                     child.get_router(strategy=child_strategy),
                     prefix=prefix,
+                    **cfg.router_kwargs,
                 )
 
         return router
