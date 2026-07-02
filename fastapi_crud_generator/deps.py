@@ -1,9 +1,9 @@
 import inspect
 from abc import ABC, abstractmethod
 from inspect import Parameter, Signature
-from typing import Annotated, Any
+from typing import Annotated, Any, get_args, get_origin
 
-from fastapi import Depends, Request
+from fastapi import Depends, Query, Request
 from pydantic import BaseModel
 
 from fastapi_crud_generator.schemas import ParentRef
@@ -89,10 +89,15 @@ class ReplaceSubDependency(ReplaceSingleSignatureDependency):
             annotation=Request,
         ) ]
         for field_name, field in self.override.model_fields.items():
+            ann = self.override.__annotations__[field_name]
+            if get_origin(ann) is list or any(
+                get_origin(a) is list for a in get_args(ann)
+            ):
+                ann = Annotated[ann, Query()]
             new_params.append(inspect.Parameter(
                 name=field_name,
                 kind=Parameter.POSITIONAL_OR_KEYWORD,
-                annotation=self.override.__annotations__[field_name],
+                annotation=ann,
                 default=field.default,
             ))
         signature = Signature(new_params)

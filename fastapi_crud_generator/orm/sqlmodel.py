@@ -1,8 +1,7 @@
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
-from typing import Annotated, Literal
+from typing import Literal
 
-from fastapi import Query
 from pydantic import BaseModel, create_model
 from pydantic_core import PydanticUndefined
 
@@ -19,6 +18,7 @@ from fastapi_crud_generator.utils import slice_model
 
 try:
     from sqlalchemy import Select, desc, func
+    from sqlalchemy.orm import joinedload, noload, selectinload
     from sqlmodel import SQLModel, select, update
     from sqlmodel.ext.asyncio.session import AsyncSession
     from sqlmodel.main import FieldInfoMetadata
@@ -142,11 +142,12 @@ class SQLModelAdapter(ORMAdapterBase):
             if name not in auto_fields
         }
 
-    def generate_public_schema(
+    def generate_flat_public_schema(
         self,
         fields: set[str] | None = None,
         base_fields: set[str] | None = None,
     ) -> type[BaseModel]:
+        """Build a schema from model fields only, without relationships."""
         crud_config = self.get_crud_config()
         resolved_public = fields or (crud_config.public_fields or None)
         resolved_base = base_fields or (crud_config.base_fields or None)
@@ -166,6 +167,29 @@ class SQLModelAdapter(ORMAdapterBase):
             fields=effective_fields,
             exclude_metadata=(FieldInfoMetadata,),
         )
+
+    def generate_public_schema(
+        self,
+        fields: set[str] | None = None,
+        base_fields: set[str] | None = None,
+    ) -> type[BaseModel]:
+        base = self.generate_flat_public_schema(fields, base_fields)
+
+        rel_fields: dict[str, Any] = {}
+        for rel_name, rel_prop in self.model.__mapper__.relationships.items():
+            related_cls = rel_prop.mapper.class_
+            tmp = object.__new__(SQLModelAdapter)
+            tmp.model = related_cls
+            related_schema = tmp.generate_flat_public_schema()
+            field_type = (
+                list[related_schema] if rel_prop.uselist else related_schema
+            )
+            rel_fields[rel_name] = (field_type | None, None)
+
+        if not rel_fields:
+            return base
+
+        return create_model(base.__name__, __base__=base, **rel_fields)
 
     def generate_create_schema(
         self,
@@ -248,10 +272,7 @@ class SQLModelAdapter(ORMAdapterBase):
         literal_type = Literal.__getitem__(fields_names)
         return create_model(
             f"{self.model.__name__}Include",
-            include=(
-                Annotated[list[literal_type] | None, Query()],
-                None,
-            ),
+            include=(list[literal_type] | None, None),
         )
 
     def _apply_parent_refs(
@@ -331,7 +352,36 @@ class SQLModelAdapter(ORMAdapterBase):
         statement: Select,
         include_data: BaseModel,
     ) -> Select:
+        requested = set(getattr(include_data, "include", None) or [])
+        for rel_name, rel_prop in (
+            self.model.__mapper__.relationships.items()
+        ):
+            rel_attr = getattr(self.model, rel_name)
+            if rel_name in requested:
+                opt = (
+                    selectinload(rel_attr)
+                    if rel_prop.uselist
+                    else joinedload(rel_attr)
+                )
+            else:
+                opt = noload(rel_attr)
+            statement = statement.options(opt)
         return statement
+
+    def _nullify_unloaded_relations(
+        self, instance: SQLModel, include_data: BaseModel,
+    ) -> None:
+        """Set non-requested relationship attributes to None on the instance.
+
+        noload() leaves collections as [] instead of None, making it
+        impossible to distinguish "not requested" from "empty loaded".
+        Direct __dict__ write bypasses the collection adapter; safe here
+        because no further ORM operations occur on the instance after this.
+        """
+        requested = set(getattr(include_data, "include", None) or [])
+        for rel_name in self.model.__mapper__.relationships.keys():
+            if rel_name not in requested:
+                instance.__dict__[rel_name] = None
 
     async def get_one(
         self,
@@ -345,7 +395,10 @@ class SQLModelAdapter(ORMAdapterBase):
             statement = statement.where(getattr(self.model, key) == value)
         statement = self.include_related(statement, include_data)
         async with self.session() as session:
-            return (await session.exec(statement)).first()
+            result = (await session.exec(statement)).first()
+            if result is not None:
+                self._nullify_unloaded_relations(result, include_data)
+            return result
 
     async def get_many(
         self,
@@ -361,7 +414,10 @@ class SQLModelAdapter(ORMAdapterBase):
         statement = self.apply_queryset_sort(statement, sort_data)
         statement = self.include_related(statement, include_data)
         async with self.session() as session:
-            return await paginator.paginate(session, statement)
+            page = await paginator.paginate(session, statement)
+            for item in page["data"]:
+                self._nullify_unloaded_relations(item, include_data)
+            return page
 
     def _fk_values_from_parent(self, parent_ref: ParentRef) -> dict:
         """Map parent PK values to child FK column names via declared FKs."""

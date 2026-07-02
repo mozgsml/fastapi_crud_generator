@@ -12,7 +12,7 @@ from datetime import datetime
 
 import sqlalchemy as sa
 from sqlalchemy import ForeignKeyConstraint
-from sqlmodel import Column, Field, SQLModel
+from sqlmodel import Column, Field, Relationship, SQLModel
 
 
 class User(SQLModel, table=True):
@@ -35,12 +35,15 @@ class Category(SQLModel, table=True):
             onupdate=sa.func.now(),
         ),
     )
+    threads: list["Thread"] = Relationship(back_populates="category")
 
 
 class Thread(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     category_id: int = Field(foreign_key="category.id")
     title: str
+    posts: list["Post"] = Relationship(back_populates="thread")
+    category: Category | None = Relationship(back_populates="threads")
 
 
 class Post(SQLModel, table=True):
@@ -48,6 +51,7 @@ class Post(SQLModel, table=True):
     thread_id: int = Field(foreign_key="thread.id")
     author_id: int | None = Field(default=None, foreign_key="user.id")
     slug: str
+    thread: Thread | None = Relationship(back_populates="posts")
     created_at: datetime | None = Field(
         default=None,
         sa_column=Column(sa.DateTime, server_default=sa.func.now()),
