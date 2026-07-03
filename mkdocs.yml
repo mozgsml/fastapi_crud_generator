@@ -1,14 +1,33 @@
 site_name: fastapi-crud-generator
 site_description: CRUD route generator for FastAPI
+repo_url: https://github.com/mozgsml/fastapi_crud_generator
+repo_name: mozgsml/fastapi_crud_generator
 
 theme:
   name: material
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
   features:
-    - navigation.indexes
+    - navigation.tabs
+    - navigation.sections
+    - content.code.copy
+    - toc.follow
 
 markdown_extensions:
   - toc:
       toc_depth: 3
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - admonition
+  - pymdownx.details
 
 plugins:
   - search
@@ -22,12 +41,22 @@ plugins:
             heading_level: 2
             show_root_heading: true
             show_root_full_path: false
+            members_order: source
           extensions:
             - griffe_inherited_docstrings
 
 nav:
   - Home: index.md
-  - Schema Generation: schema-generation.md
+  - Guide:
+    - Getting Started: guide/getting-started.md
+    - ORM Adapters: guide/orm-adapters.md
+    - Schema Generation: guide/schema-generation.md
+    - Filtering & Sorting: guide/filtering-sorting.md
+    - Pagination: guide/pagination.md
+    - Nested Resources: guide/nested-resources.md
+    - Dependencies: guide/dependencies.md
+    - Customization: guide/customization.md
+  - Custom Adapter: custom-adapter.md
   - API Reference: api-reference.md
 
 docs_dir: docs
