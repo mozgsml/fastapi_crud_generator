@@ -45,6 +45,16 @@ def _make_factory():
     return make_adapter
 
 
+_DROP_ORDER = [
+    forum_models.PostTranslation,
+    forum_models.Post,
+    forum_models.Tag,
+    forum_models.Thread,
+    forum_models.Category,
+    forum_models.User,
+]
+
+
 async def _drop_tables(db_url: str) -> None:
     """Drop all model tables so each test starts with a clean schema.
 
@@ -56,12 +66,7 @@ async def _drop_tables(db_url: str) -> None:
     if db_url.startswith("sqlite"):
         return
     conn = connections.get("default")
-    tables = [
-        m._meta.db_table
-        for m in reversed(
-            list(Tortoise.apps.get("models", {}).values())
-        )
-    ]
+    tables = [m._meta.db_table for m in _DROP_ORDER]
     if db_url.startswith("postgres"):
         for t in tables:
             await conn.execute_script(
