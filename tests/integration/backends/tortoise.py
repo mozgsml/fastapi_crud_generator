@@ -45,9 +45,39 @@ def _make_factory():
     return make_adapter
 
 
+async def _drop_tables(db_url: str) -> None:
+    """Drop all model tables so each test starts with a clean schema.
+
+    SQLite in-memory DBs are always fresh, so this is a no-op for them.
+    For postgres/mysql the tables persist between fixture teardowns.
+    """
+    from tortoise import connections
+
+    if db_url.startswith("sqlite"):
+        return
+    conn = connections.get("default")
+    tables = [
+        m._meta.db_table
+        for m in reversed(
+            list(Tortoise.apps.get("models", {}).values())
+        )
+    ]
+    if db_url.startswith("postgres"):
+        for t in tables:
+            await conn.execute_script(
+                f'DROP TABLE IF EXISTS "{t}" CASCADE'
+            )
+    else:
+        await conn.execute_script("SET FOREIGN_KEY_CHECKS=0")
+        for t in tables:
+            await conn.execute_script(f"DROP TABLE IF EXISTS `{t}`")
+        await conn.execute_script("SET FOREIGN_KEY_CHECKS=1")
+
+
 @asynccontextmanager
 async def _backend(db_url: str):
     await Tortoise.init(db_url=db_url, modules=_MODULES)
+    await _drop_tables(db_url)
     await Tortoise.generate_schemas()
     try:
         yield BackendContext(

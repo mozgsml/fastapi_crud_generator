@@ -45,6 +45,7 @@ postgresql = [
 ]
 mysql = [
     "aiomysql",
+    "cryptography",
 ]
 docs = [
     "mkdocs-material",
