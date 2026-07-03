@@ -71,10 +71,14 @@ try:
 except ImportError:
     pass
 
-# When running inside CI matrix, PYTEST_ORM limits to a single ORM.
+# In CI each job sets PYTEST_ORM and PYTEST_DB to isolate one combination.
 _orm_filter = os.getenv("PYTEST_ORM")
 if _orm_filter:
     BACKENDS = [b for b in BACKENDS if b.__name__.startswith(_orm_filter)]
+
+_db_filter = os.getenv("PYTEST_DB")
+if _db_filter:
+    BACKENDS = [b for b in BACKENDS if _db_filter in b.__name__]
 
 
 def pytest_collection_modifyitems(items: list) -> None:

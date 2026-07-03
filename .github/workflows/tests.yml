@@ -89,5 +89,6 @@ jobs:
         run: uv run pytest tests/integration/ -q
         env:
           PYTEST_ORM: ${{ matrix.orm }}
+          PYTEST_DB: ${{ matrix.db }}
           POSTGRES_URL: ${{ matrix.postgres_url }}
           MYSQL_URL: ${{ matrix.mysql_url }}
