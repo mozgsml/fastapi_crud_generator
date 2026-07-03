@@ -68,7 +68,7 @@ DELETE /threads/{thread_id}
 
 GET    /threads/{thread_id}/posts
 GET    /threads/{thread_id}/posts/{post_id}
-POST   /threads/{thread_id}/posts               # post.thread_id set automatically
+POST   /threads/{thread_id}/posts
 PATCH  /threads/{thread_id}/posts/{post_id}
 DELETE /threads/{thread_id}/posts/{post_id}
 ```
