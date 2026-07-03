@@ -1,0 +1,25 @@
+name: Docs
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "fastapi_crud_generator/**"  # docstrings in source
+
+jobs:
+  deploy:
+    name: Build & deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # push to gh-pages branch
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Deploy docs
+        run: uv run --group docs mkdocs gh-deploy --force
