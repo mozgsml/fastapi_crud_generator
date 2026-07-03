@@ -1,6 +1,6 @@
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, create_model
 from pydantic_core import PydanticUndefined

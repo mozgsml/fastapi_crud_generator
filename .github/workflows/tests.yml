@@ -1,0 +1,93 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: ${{ matrix.orm }} / ${{ matrix.db }}
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: mysql
+          MYSQL_DATABASE: test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -pmysql"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - orm: sqlmodel
+            db: sqlite
+            uv_groups: "--group sqlmodel --group sqlite"
+          - orm: sqlalchemy
+            db: sqlite
+            uv_groups: "--group sqlalchemy --group sqlite"
+          - orm: tortoise
+            db: sqlite
+            uv_groups: "--group tortoise --group sqlite"
+
+          - orm: sqlmodel
+            db: postgres
+            uv_groups: "--group sqlmodel --group postgresql"
+            postgres_url: postgresql+asyncpg://postgres:postgres@localhost/test
+          - orm: sqlalchemy
+            db: postgres
+            uv_groups: "--group sqlalchemy --group postgresql"
+            postgres_url: postgresql+asyncpg://postgres:postgres@localhost/test
+          - orm: tortoise
+            db: postgres
+            uv_groups: "--group tortoise --group postgresql"
+            postgres_url: postgresql+asyncpg://postgres:postgres@localhost/test
+
+          - orm: sqlmodel
+            db: mysql
+            uv_groups: "--group sqlmodel --group mysql"
+            mysql_url: mysql+aiomysql://root:mysql@localhost/test
+          - orm: sqlalchemy
+            db: mysql
+            uv_groups: "--group sqlalchemy --group mysql"
+            mysql_url: mysql+aiomysql://root:mysql@localhost/test
+          - orm: tortoise
+            db: mysql
+            uv_groups: "--group tortoise --group mysql"
+            mysql_url: mysql+aiomysql://root:mysql@localhost/test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Install dependencies
+        run: uv sync --group dev ${{ matrix.uv_groups }}
+
+      - name: Run tests
+        run: uv run pytest tests/integration/ -q
+        env:
+          PYTEST_ORM: ${{ matrix.orm }}
+          POSTGRES_URL: ${{ matrix.postgres_url }}
+          MYSQL_URL: ${{ matrix.mysql_url }}

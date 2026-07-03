@@ -41,6 +41,55 @@ try:
 except ImportError:
     pass
 
+try:
+    from tests.integration.backends.sqlalchemy import (
+        sqlalchemy_mysql,
+        sqlalchemy_postgres,
+        sqlalchemy_sqlite,
+    )
+
+    BACKENDS.append(sqlalchemy_sqlite)
+    if os.getenv(POSTGRES_URL_ENV):
+        BACKENDS.append(sqlalchemy_postgres)
+    if os.getenv(MYSQL_URL_ENV):
+        BACKENDS.append(sqlalchemy_mysql)
+except ImportError:
+    pass
+
+try:
+    from tests.integration.backends.tortoise import (
+        tortoise_mysql,
+        tortoise_postgres,
+        tortoise_sqlite,
+    )
+
+    BACKENDS.append(tortoise_sqlite)
+    if os.getenv(POSTGRES_URL_ENV):
+        BACKENDS.append(tortoise_postgres)
+    if os.getenv(MYSQL_URL_ENV):
+        BACKENDS.append(tortoise_mysql)
+except ImportError:
+    pass
+
+# When running inside CI matrix, PYTEST_ORM limits to a single ORM.
+_orm_filter = os.getenv("PYTEST_ORM")
+if _orm_filter:
+    BACKENDS = [b for b in BACKENDS if b.__name__.startswith(_orm_filter)]
+
+
+def pytest_collection_modifyitems(items: list) -> None:
+    """Skip tests that require composite PK support for Tortoise backends."""
+    for item in items:
+        if not hasattr(item, "callspec"):
+            continue
+        param_id: str = item.callspec.id
+        if "tortoise" in param_id and "test_composite" in item.nodeid:
+            item.add_marker(
+                pytest.mark.skip(
+                    reason="Tortoise ORM does not support composite PKs",
+                )
+            )
+
 
 @pytest.fixture(params=BACKENDS, ids=lambda b: b.__name__)
 async def _backend(request):

@@ -43,8 +43,17 @@ sqlite = [
 postgresql = [
     "asyncpg",
 ]
+mysql = [
+    "aiomysql",
+]
 docs = [
     "mkdocs-material",
     "mkdocstrings[python]",
     "griffe-inherited-docstrings",
+]
+sqlalchemy = [
+    "sqlalchemy[asyncio]",
+]
+tortoise = [
+    "tortoise-orm>=1.1.7",
 ]
