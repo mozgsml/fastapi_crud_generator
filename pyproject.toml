@@ -4,16 +4,42 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fastapi-crud-generator"
-version = "0.1.0"
+version = "0.0.1"
 description = "CRUD route generator for FastAPI"
+readme = "README.md"
+license = { file = "LICENSE.txt" }
 requires-python = ">=3.11"
+authors = [
+    { name = "Nikolai Lukianov", email = "laserwargpt@gmail.com" },
+]
+keywords = ["fastapi", "crud", "rest", "api", "sqlmodel", "sqlalchemy", "tortoise"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Framework :: FastAPI",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
 dependencies = [
     "fastapi",
     "pydantic",
 ]
 
+[project.urls]
+Homepage = "https://github.com/mozgsml/fastapi_crud_generator"
+Repository = "https://github.com/mozgsml/fastapi_crud_generator"
+Issues = "https://github.com/mozgsml/fastapi_crud_generator/issues"
+
 [project.optional-dependencies]
 sqlmodel = ["sqlmodel"]
+sqlalchemy = ["sqlalchemy[asyncio]"]
+tortoise = ["tortoise-orm>=1.1.7"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["fastapi_crud_generator"]
@@ -32,10 +58,12 @@ dev = [
     "pytest",
     "pytest-asyncio",
     "httpx",
-    "ipykernel>=7.2.0",
 ]
 sqlmodel = [
     "sqlmodel",
+]
+sqlalchemy = [
+    "sqlalchemy[asyncio]",
 ]
 sqlite = [
     "aiosqlite",
@@ -47,14 +75,11 @@ mysql = [
     "aiomysql",
     "cryptography",
 ]
+tortoise = [
+    "tortoise-orm>=1.1.7",
+]
 docs = [
     "mkdocs-material",
     "mkdocstrings[python]",
     "griffe-inherited-docstrings",
-]
-sqlalchemy = [
-    "sqlalchemy[asyncio]",
-]
-tortoise = [
-    "tortoise-orm>=1.1.7",
 ]
