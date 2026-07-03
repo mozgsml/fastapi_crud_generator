@@ -5,10 +5,10 @@
 [![Python](https://img.shields.io/pypi/pyversions/fastapi-crud-generator)](https://pypi.org/project/fastapi-crud-generator/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/mozgsml/fastapi_crud_generator/blob/main/LICENSE.txt)
 
-Подключает полноценный CRUD к FastAPI без написания схем, фильтров и пагинации вручную.
-Схемы генерируются из ORM-модели автоматически.
+Adds full CRUD routes to FastAPI without writing schemas, filters, or pagination by hand.
+Everything is generated automatically from your ORM model.
 
-## Три строки до работающего API
+## Three lines to a working API
 
 ```python
 from fastapi_crud_generator import CRUDCollection
@@ -18,29 +18,28 @@ crud = CRUDCollection(orm_adapter=SQLModelAdapter(model=Article, get_session=get
 app.include_router(crud.get_router(prefix="/articles", tags=["articles"]))
 ```
 
-Этого достаточно для полного набора эндпоинтов:
+That's enough for a complete set of endpoints:
 
-| Метод | URL | Описание |
+| Method | URL | Description |
 |---|---|---|
-| `GET` | `/articles` | Список с фильтрацией, сортировкой и пагинацией |
-| `GET` | `/articles/{article_id}` | Получить по ID |
-| `POST` | `/articles` | Создать |
-| `PATCH` | `/articles/{article_id}` | Частично обновить |
-| `DELETE` | `/articles/{article_id}` | Удалить |
+| `GET` | `/articles` | List with filtering, sorting, and pagination |
+| `GET` | `/articles/{article_id}` | Get by ID |
+| `POST` | `/articles` | Create |
+| `PATCH` | `/articles/{article_id}` | Partial update |
+| `DELETE` | `/articles/{article_id}` | Delete |
 
-Схемы запросов и ответов, фильтры по всем полям, сортировка и постраничная
-навигация — всё генерируется автоматически из ORM-модели. Ничего дополнительно
-писать не нужно.
+Request/response schemas, filters, sorting, and pagination are all derived
+from the ORM model — no extra code needed.
 
-## Установка
+## Installation
 
-Если SQLModel, SQLAlchemy или Tortoise уже есть в проекте — достаточно:
+If SQLModel, SQLAlchemy, or Tortoise is already in your project:
 
 ```bash
 pip install fastapi-crud-generator
 ```
 
-Если нужно установить ORM вместе с пакетом:
+To install an ORM together with the package:
 
 ```bash
 pip install "fastapi-crud-generator[sqlmodel]"
@@ -48,17 +47,16 @@ pip install "fastapi-crud-generator[sqlalchemy]"
 pip install "fastapi-crud-generator[tortoise]"
 ```
 
-## Что доступно из коробки
+## What you get out of the box
 
-- **Автосхемы** — public, create, update генерируются из ORM-модели;
-  никаких `class ArticleCreate(BaseModel): ...`
-- **Фильтрация** — `?title=hello&status=published` без дополнительного кода
-- **Сортировка** — `?sort=created_at:desc`
-- **Пагинация** — `?page=2&per_page=10`, ответ содержит `count`, `page`, `data`
-- **Вложенные ресурсы** — `/threads/{thread_id}/posts/{post_id}` через `add_nested_collection`
-- **Поддержка SQLModel, SQLAlchemy, Tortoise ORM**
-- **Кастомизация** — любую схему можно заменить своей, любой хендлер переопределить
+- **Auto schemas** — public, create, and update schemas generated from the ORM model; no `ArticleCreate(BaseModel)` boilerplate
+- **Filtering** — `?title=hello&published=true` with no extra code
+- **Sorting** — `?sort=created_at:desc`
+- **Pagination** — `?page=2&per_page=10`, response includes `count`, `page`, `data`
+- **Nested resources** — `/threads/{thread_id}/posts/{post_id}` via `add_nested_collection`
+- **SQLModel, SQLAlchemy, Tortoise ORM** support
+- **Customizable** — replace any schema with your own, override any handler
 
-## Быстрее начать
+## Next steps
 
-[Getting Started](guide/getting-started.md) — полный рабочий пример с нуля.
+[Getting Started](guide/getting-started.md) — full working example from scratch.

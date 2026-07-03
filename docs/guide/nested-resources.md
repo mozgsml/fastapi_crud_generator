@@ -1,9 +1,8 @@
 # Nested Resources
 
-Вложенные ресурсы позволяют строить иерархические маршруты вида
-`/threads/{thread_id}/posts/{post_id}`.
+Nested resources let you build hierarchical routes like `/threads/{thread_id}/posts/{post_id}`.
 
-## Базовый пример
+## Basic example
 
 ```python
 from fastapi_crud_generator import CRUDCollection
@@ -17,7 +16,7 @@ thread_crud.add_nested_collection("/posts", post_crud)
 app.include_router(thread_crud.get_router(prefix="/threads"))
 ```
 
-Результирующие маршруты:
+Resulting routes:
 
 ```
 GET    /threads
@@ -33,7 +32,7 @@ PATCH  /threads/{thread_id}/posts/{post_id}
 DELETE /threads/{thread_id}/posts/{post_id}
 ```
 
-## Трёхуровневая вложенность
+## Three levels deep
 
 ```python
 category_crud = CRUDCollection(orm_adapter=SQLModelAdapter(model=Category, get_session=get_session))
@@ -47,22 +46,22 @@ app.include_router(category_crud.get_router(prefix="/categories"))
 # → /categories/{category_id}/threads/{thread_id}/posts/{post_id}
 ```
 
-## Как работает фильтрация по родителю
+## How parent filtering works
 
-Когда приходит запрос `GET /threads/{thread_id}/posts`, адаптер получает `parent_refs` —
-список объектов `ParentRef` с моделью и PK родителя:
+When a request comes in for `GET /threads/{thread_id}/posts`, the adapter receives
+`parent_refs` — a list of `ParentRef` objects containing the parent model and its PK:
 
 ```python
 @dataclass
 class ParentRef:
-    model: type  # Thread
+    model: type       # Thread
     pk_values: BaseModel  # { thread_id: 42 }
 ```
 
-Стандартные адаптеры (SQLModel, SQLAlchemy, Tortoise) автоматически применяют
-`WHERE post.thread_id = 42` к выборке и при создании устанавливают `thread_id = 42`.
+The built-in adapters (SQLModel, SQLAlchemy, Tortoise) automatically apply
+`WHERE post.thread_id = 42` to queries and set `thread_id = 42` on creation.
 
-## Настройка тегов для вложенных роутеров
+## Router tags for nested collections
 
 ```python
 from fastapi_crud_generator.config import NestedConfig

@@ -1,18 +1,18 @@
 # Customization
 
-## Отключение эндпоинтов
+## Disabling endpoints
 
 ```python
 crud = CRUDCollection(
     orm_adapter=adapter,
-    disable_delete=True,   # убрать DELETE
-    disable_create=True,   # убрать POST
+    disable_delete=True,
+    disable_create=True,
 )
 ```
 
-## Переопределение обработчиков через подкласс
+## Overriding handlers via subclass
 
-Наследуйтесь от `CRUDCollection` и переопределяйте нужные методы:
+Subclass `CRUDCollection` and override the methods you need:
 
 ```python
 from fastapi_crud_generator import CRUDCollection
@@ -22,11 +22,9 @@ class ArticleCRUD(CRUDCollection):
     orm_adapter = SQLModelAdapter(model=Article, get_session=get_session)
 
     async def get_one_not_found(self, pk_values, include_data):
-        # Кастомный ответ вместо стандартного 404
-        raise HTTPException(status_code=404, detail=f"Article not found")
+        raise HTTPException(status_code=404, detail="Article not found")
 
     async def create_one_handler(self, create_data, parent_refs):
-        # Доп. логика перед созданием
         create_data.slug = slugify(create_data.title)
         return await super().create_one_handler(create_data, parent_refs)
 
@@ -34,9 +32,9 @@ crud = ArticleCRUD()
 app.include_router(crud.get_router(prefix="/articles"))
 ```
 
-## Атрибуты класса вместо аргументов
+## Class attributes instead of constructor arguments
 
-Все параметры `CRUDCollection` можно задать как атрибуты класса:
+All `CRUDCollection` parameters can be set as class attributes:
 
 ```python
 class ArticleCRUD(CRUDCollection):
@@ -46,7 +44,7 @@ class ArticleCRUD(CRUDCollection):
     create_dependencies = [Depends(require_admin)]
 ```
 
-Это удобно когда несколько `CRUDCollection` разделяют общую конфигурацию:
+This is handy when several collections share common configuration:
 
 ```python
 class AuthenticatedCRUD(CRUDCollection):
@@ -59,14 +57,14 @@ class CommentCRUD(AuthenticatedCRUD):
     orm_adapter = SQLModelAdapter(model=Comment, get_session=get_session)
 ```
 
-## Кастомный ID в URL
+## Custom ID path
 
-По умолчанию `CRUDCollection` строит путь вида `/{article_id}` из имени модели.
-Чтобы изменить это поведение — переопределите `apply_pk_aliases`:
+By default, `CRUDCollection` builds a path like `/{article_id}` from the model name.
+Override `apply_pk_aliases` to change this:
 
 ```python
 class ArticleCRUD(CRUDCollection):
     def apply_pk_aliases(self, pk_schema):
-        # оставить имя поля как есть: /{id} вместо /{article_id}
+        # use /{id} instead of /{article_id}
         return pk_schema
 ```
