@@ -1,9 +1,8 @@
 # Custom Adapter
 
-Если нужно подключить ORM или источник данных, для которого нет готового адаптера,
-реализуйте `ORMAdapterBase`.
+To connect an ORM or data source that has no built-in adapter, implement `ORMAdapterBase`.
 
-## Интерфейс
+## Interface
 
 ```python
 from fastapi_crud_generator.orm.base import ORMAdapterBase
@@ -11,14 +10,14 @@ from fastapi_crud_generator.schemas import PaginatorPage, ParentRef
 from pydantic import BaseModel
 
 class MyAdapter(ORMAdapterBase):
-    # Генерация схем
+    # Schema generation
     def generate_public_schema(self, fields=None, base_fields=None) -> type[BaseModel]: ...
     def generate_create_schema(self, fields=None, base_fields=None, exclude_related=None) -> type[BaseModel]: ...
     def generate_update_schema(self, fields=None, base_fields=None) -> type[BaseModel]: ...
     def generate_pk_schema(self) -> type[BaseModel]: ...
     def generate_include_schema(self) -> type[BaseModel]: ...
 
-    # CRUD-операции
+    # CRUD operations
     async def get_one(self, pk_values, include_data, parent_refs=None): ...
     async def get_many(self, filter_data, sort_data, include_data, paginator, parent_refs=None): ...
     async def create_one(self, data, parent_refs=None): ...
@@ -26,12 +25,12 @@ class MyAdapter(ORMAdapterBase):
     async def delete_one(self, pk_values, parent_refs=None): ...
 ```
 
-## Пример: простое хранилище в памяти
+## Example: in-memory store
 
 ```python
 from pydantic import BaseModel, create_model
 from fastapi_crud_generator.orm.base import ORMAdapterBase
-from fastapi_crud_generator.schemas import NotFoundError, PaginatorPage
+from fastapi_crud_generator.schemas import NotFoundError
 
 _store: dict[int, dict] = {}
 _next_id = 1
@@ -53,8 +52,6 @@ class ItemPK(BaseModel):
     id: int
 
 class InMemoryAdapter(ORMAdapterBase):
-    model = None
-
     def generate_public_schema(self, fields=None, base_fields=None):
         return ItemPublic
 
@@ -75,9 +72,8 @@ class InMemoryAdapter(ORMAdapterBase):
 
     async def get_many(self, filter_data, sort_data, include_data, paginator, parent_refs=None):
         items = list(_store.values())
-        total = len(items)
         page = items[paginator.offset : paginator.offset + paginator.limit]
-        return {"page": paginator.page, "per_page": paginator.per_page, "count": total, "data": page}
+        return {"page": paginator.page, "per_page": paginator.per_page, "count": len(items), "data": page}
 
     async def create_one(self, data, parent_refs=None):
         global _next_id
@@ -96,17 +92,17 @@ class InMemoryAdapter(ORMAdapterBase):
         return _store.pop(pk_values.id, None)
 ```
 
-Подключение:
+Usage:
 
 ```python
 crud = CRUDCollection(orm_adapter=InMemoryAdapter())
 app.include_router(crud.get_router(prefix="/items"))
 ```
 
-## `parent_refs`
+## `parent_refs` in nested resources
 
-В вложенных ресурсах методы получают `parent_refs` — список `ParentRef`
-с информацией о родительских объектах:
+In nested routes, CRUD methods receive `parent_refs` — a list of `ParentRef`
+objects describing the parent items in the URL:
 
 ```python
 from fastapi_crud_generator.schemas import ParentRef
@@ -119,6 +115,6 @@ async def get_many(self, filter_data, sort_data, include_data, paginator, parent
     ...
 ```
 
-## Полная документация интерфейса
+## Full interface reference
 
-See [API Reference](api-reference.md#ORMAdapterBase).
+See [API Reference](api-reference.md).

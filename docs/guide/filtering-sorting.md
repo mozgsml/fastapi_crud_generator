@@ -1,9 +1,9 @@
 # Filtering & Sorting
 
-## Фильтрация
+## Filtering
 
-Фильтр-схема генерируется автоматически из public-схемы. Все скалярные поля
-(`int`, `float`, `str`, `bool`, enum) становятся опциональными query-параметрами.
+A filter schema is generated automatically from the public schema. All scalar fields
+(`int`, `float`, `str`, `bool`, enum) become optional query parameters.
 
 ```
 GET /articles?published=true
@@ -11,11 +11,11 @@ GET /articles?title=hello
 GET /articles?published=false&title=draft
 ```
 
-Поля-отношения (FK-объекты, списки) в фильтр не попадают — только примитивные типы.
+Relation fields (FK objects, lists) are excluded — only primitive types are supported.
 
-### Кастомный фильтр
+### Custom filter schema
 
-Если нужна другая логика (например, фильтр по диапазону дат) — передайте свою схему:
+If you need different logic (e.g. date range filtering), pass your own schema:
 
 ```python
 from pydantic import BaseModel
@@ -33,28 +33,27 @@ crud = CRUDCollection(
 ```
 
 !!! note
-    При использовании кастомного фильтра адаптер передаёт его в `get_many` как есть.
-    Логику применения фильтра нужно реализовать в адаптере — стандартный адаптер
-    применяет только поля, совпадающие по имени с колонками модели.
+    With a custom filter schema, the adapter receives it as-is in `get_many`.
+    The standard adapters apply only fields that match model column names by exact match.
+    For range filters or custom logic, override the adapter's `get_many` method.
 
-## Сортировка
+## Sorting
 
-Сортировка тоже генерируется автоматически. Для каждого скалярного поля доступно
-три варианта:
+Sorting is also generated automatically. For each scalar field, three variants are available:
 
 ```
-GET /articles?sort=title          # по умолчанию asc
+GET /articles?sort=title          # ascending by default
 GET /articles?sort=title:asc
 GET /articles?sort=title:desc
 ```
 
-Можно передать несколько значений:
+Multiple sort fields are supported:
 
 ```
 GET /articles?sort=published:desc&sort=title:asc
 ```
 
-### Кастомная сортировка
+### Custom sort schema
 
 ```python
 from typing import Literal

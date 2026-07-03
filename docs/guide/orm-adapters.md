@@ -1,7 +1,7 @@
 # ORM Adapters
 
-Адаптер связывает конкретный ORM с `CRUDCollection`. Он отвечает за генерацию схем
-и выполнение запросов к базе данных.
+An adapter connects a specific ORM to `CRUDCollection`. It handles schema generation
+and executes database queries.
 
 ## SQLModel
 
@@ -14,8 +14,8 @@ adapter = SQLModelAdapter(
 )
 ```
 
-`get_session` — асинхронный генератор, который возвращает `sqlmodel.ext.asyncio.session.AsyncSession`.
-Стандартный паттерн с FastAPI:
+`get_session` is an async generator that yields a `sqlmodel.ext.asyncio.session.AsyncSession`.
+Standard FastAPI pattern:
 
 ```python
 from collections.abc import AsyncGenerator
@@ -28,7 +28,7 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 ## SQLAlchemy (DeclarativeBase)
 
-Работает с `DeclarativeBase`-моделями напрямую, без SQLModel.
+Works directly with `DeclarativeBase` models, without SQLModel.
 
 ```python
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -50,11 +50,11 @@ adapter = SQLAlchemyAdapter(
 )
 ```
 
-`get_session` возвращает `sqlalchemy.ext.asyncio.AsyncSession`.
+`get_session` yields a `sqlalchemy.ext.asyncio.AsyncSession`.
 
 ## Tortoise ORM
 
-Tortoise управляет соединениями глобально, поэтому `get_session` не нужен.
+Tortoise manages connections globally, so no `get_session` is needed.
 
 ```python
 from tortoise import fields
@@ -73,7 +73,7 @@ class Article(Model):
 adapter = TortoiseAdapter(model=Article)
 ```
 
-Инициализацию Tortoise делайте при старте приложения через lifespan:
+Initialize Tortoise at application startup via lifespan:
 
 ```python
 from contextlib import asynccontextmanager
@@ -92,11 +92,11 @@ async def lifespan(app):
 app = FastAPI(lifespan=lifespan)
 ```
 
-## Сравнение адаптеров
+## Comparison
 
 | | SQLModel | SQLAlchemy | Tortoise |
 |---|---|---|---|
-| Требует `get_session` | да | да | нет |
-| Поддержка composite PK | да | да | нет (ограничение Tortoise) |
-| `crud_config` на модели | да | нет | нет |
-| Схемы из | `model_fields` | `mapped_column` | `pydantic_model_creator` |
+| Requires `get_session` | yes | yes | no |
+| Composite PK support | yes | yes | no (Tortoise limitation) |
+| `crud_config` on model | yes | no | no |
+| Schemas built from | `model_fields` | `mapped_column` | `pydantic_model_creator` |

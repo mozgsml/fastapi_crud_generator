@@ -1,9 +1,9 @@
 # Dependencies
 
-Стандартные FastAPI-зависимости (`Depends`) можно навешивать на все маршруты сразу
-или на конкретный тип операции.
+Standard FastAPI dependencies (`Depends`) can be applied to all routes at once
+or to a specific operation type.
 
-## На все маршруты
+## All routes
 
 ```python
 from fastapi import Depends
@@ -15,7 +15,7 @@ crud = CRUDCollection(
 )
 ```
 
-## На конкретный тип
+## Per operation type
 
 ```python
 crud = CRUDCollection(
@@ -28,7 +28,7 @@ crud = CRUDCollection(
 )
 ```
 
-## Пример: JWT-авторизация
+## Example: JWT authentication
 
 ```python
 from fastapi import Depends, HTTPException, Security
@@ -46,9 +46,9 @@ crud = CRUDCollection(
 )
 ```
 
-## На уровне роутера
+## At router level
 
-Зависимости можно задать и при подключении роутера, а не в `CRUDCollection`:
+Dependencies can also be added when mounting the router rather than in `CRUDCollection`:
 
 ```python
 app.include_router(

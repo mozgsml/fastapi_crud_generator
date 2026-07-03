@@ -1,8 +1,8 @@
 # Pagination
 
-## Формат ответа
+## Response format
 
-`GET /` всегда возвращает объект `PaginatorPage`:
+Every `GET /` response is a `PaginatorPage` object:
 
 ```json
 {
@@ -13,24 +13,24 @@
 }
 ```
 
-`count` — общее количество объектов (с учётом фильтров), а не количество в `data`.
+`count` is the total number of matching objects, not the number of items in `data`.
 
-## Query-параметры
+## Query parameters
 
 ```
 GET /articles?page=3&per_page=10
 ```
 
-| Параметр | По умолчанию | Ограничения |
+| Parameter | Default | Constraint |
 |---|---|---|
 | `page` | 1 | ≥ 1 |
 | `per_page` | 20 | ≥ 0 |
 
-`per_page=0` возвращает все записи без ограничений.
+`per_page=0` returns all records without limit.
 
-## Кастомный пагинатор
+## Custom paginator
 
-Если нужна другая логика пагинации — унаследуйтесь от `PaginatorBase`:
+Subclass `PaginatorBase` to implement different pagination logic:
 
 ```python
 from fastapi import Query
@@ -47,4 +47,4 @@ class CursorPaginator(PaginatorBase):
         return {"page": 1, "per_page": self.limit, "count": len(data), "data": data}
 ```
 
-Передайте пагинатор через адаптер или напрямую в `CRUDCollection` через `dependency_overrides`.
+Pass the custom paginator class through the adapter or via `dependency_overrides` in `CRUDCollection`.
