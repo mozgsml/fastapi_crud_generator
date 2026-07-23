@@ -75,12 +75,12 @@ class TestIdPath:
 
     def test_single_pk_path(self):
         crud = CRUDCollection(orm_adapter=make_adapter(ItemUUID))
-        assert crud.id_path == "/{itemuuid_id}"
+        assert crud.get_id_path() == "/{itemuuid_id}"
 
     def test_composite_pk_path_contains_both_fields(self):
         crud = CRUDCollection(orm_adapter=make_adapter(ItemCompositePK))
-        assert "{user_id}" in crud.id_path
-        assert "{club_id}" in crud.id_path
+        assert "{user_id}" in crud.get_id_path()
+        assert "{club_id}" in crud.get_id_path()
 
     def test_manual_pk_fields_without_alias_uses_field_name(self):
         class ManualPK(BaseModel):
@@ -90,4 +90,10 @@ class TestIdPath:
             orm_adapter=make_adapter(ItemUUID),
             pk_fields=ManualPK,
         )
-        assert crud.id_path == "/{id}"
+        assert crud.get_id_path() == "/{id}"
+
+    def test_exclude_drops_ancestor_bound_pk_field(self):
+        crud = CRUDCollection(orm_adapter=make_adapter(ItemCompositePK))
+        path = crud.get_id_path(exclude=frozenset({"user_id"}))
+        assert "{user_id}" not in path
+        assert path == "/{club_id}"
