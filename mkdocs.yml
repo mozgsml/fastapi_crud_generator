@@ -56,6 +56,7 @@ nav:
     - Nested Resources: guide/nested-resources.md
     - Dependencies: guide/dependencies.md
     - Customization: guide/customization.md
+    - Cookbook: guide/cookbook.md
   - Custom Adapter: custom-adapter.md
   - API Reference: api-reference.md
 
