@@ -18,7 +18,7 @@ Works with **SQLModel**, **SQLAlchemy**, and **Tortoise ORM**.
 - **Sorting** — `?sort=created_at:desc` or multiple: `?sort=published:desc&sort=title:asc`
 - **Pagination** — `?page=2&per_page=20`, response always includes total `count`
 - **Nested resources** — `/threads/{thread_id}/posts/{post_id}` in three lines
-- **Related data** — fetch relations in a single request via `?include=author,tags`
+- **Related data** — fetch relations in one request via `?include=author&include=tags`
 - **Customizable** — disable any endpoint, override any handler, replace any schema
 
 ## Quick start

@@ -1,7 +1,8 @@
 """Router strategies — encapsulate nesting context for CRUD route building.
 
 Each strategy carries the full ancestor context for one level of nesting:
-- how to compute the discriminating id_path for that level
+- ``ancestor_names``: pk path-params contributed by ancestors, which the
+  collection excludes from its own id_path so they are not repeated
 - which dependency overrides to apply (ParentPKFieldsDependency chain)
 
 ``TopLevelStrategy`` is the default for standalone collections.
@@ -17,7 +18,6 @@ from pydantic import BaseModel
 from fastapi_crud_generator.deps import (
     ConstantDependency,
     ParentPKFieldsDependency,
-    PKFieldsDependency,
     ReplaceSignatureDependency,
 )
 
@@ -27,24 +27,13 @@ if TYPE_CHECKING:
 _DUMMY_PARAM = inspect.Parameter("_", inspect.Parameter.POSITIONAL_OR_KEYWORD)
 
 
-def _id_path_from_fields(
-    pk_fields: type[BaseModel],
-    exclude: frozenset[str],
-) -> str:
-    parts = [
-        f"{{{f.validation_alias or n}}}"
-        for n, f in pk_fields.model_fields.items()
-        if (f.validation_alias or n) not in exclude
-    ]
-    return "/" + "/".join(parts)
-
-
 class RouterStrategy(ABC):
     """Context object for one level of the CRUD router tree."""
 
-    @abstractmethod
-    def compute_id_path(self, pk_fields: type[BaseModel]) -> str:
-        """Return the URL path segment for single-item routes at this level."""
+    # pk path-param names already bound by ancestors; a collection hands
+    # this to get_id_path so it drops params an ancestor already placed
+    # in the URL. Each concrete strategy sets it.
+    ancestor_names: frozenset[str]
 
     @abstractmethod
     def get_overrides(
@@ -73,8 +62,7 @@ class RouterStrategy(ABC):
 class TopLevelStrategy(RouterStrategy):
     """Strategy for a standalone (non-nested) collection."""
 
-    def compute_id_path(self, pk_fields: type[BaseModel]) -> str:
-        return _id_path_from_fields(pk_fields, exclude=frozenset())
+    ancestor_names = frozenset()
 
     def get_overrides(self, resolved_overrides: dict) -> dict:
         return resolved_overrides
@@ -105,11 +93,8 @@ class NestedStrategy(RouterStrategy):
         ancestor_names: frozenset[str],
         parent_dep: ParentPKFieldsDependency,
     ) -> None:
-        self._ancestor_names = ancestor_names
+        self.ancestor_names = ancestor_names
         self._parent_dep = parent_dep
-
-    def compute_id_path(self, pk_fields: type[BaseModel]) -> str:
-        return _id_path_from_fields(pk_fields, exclude=self._ancestor_names)
 
     def get_overrides(self, resolved_overrides: dict) -> dict:
         return {
@@ -126,7 +111,7 @@ class NestedStrategy(RouterStrategy):
             model=model,
             parent_dep=self._parent_dep,
         )
-        new_names = self._ancestor_names | frozenset(
+        new_names = self.ancestor_names | frozenset(
             p.name for p in new_dep.get_new_params(_DUMMY_PARAM)
         )
         return NestedStrategy(ancestor_names=new_names, parent_dep=new_dep)

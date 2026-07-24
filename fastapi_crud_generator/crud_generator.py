@@ -449,12 +449,18 @@ class CRUDCollectionBase(ABC):
         method = next(iter(route.methods)).lower()
         return f"{operation_id}_{method}_{type(self.public_schema).__name__}"
 
-    @property
-    def id_path(self) -> str:
-        """URL path segment for single-object endpoints, e.g. /{user_id}."""
+    def get_id_path(self, exclude: frozenset[str] = frozenset()) -> str:
+        """URL path segment for single-object endpoints, e.g. /{user_id}.
+
+        ``exclude`` drops pk params already bound by an ancestor's path,
+        so a nested collection does not repeat them. Override this to
+        pin a fixed segment (e.g. ``return "/me"`` for a token-scoped
+        singleton, where the identity comes from auth, not the URL).
+        """
         return "/" + "/".join(
             f"{{{f.validation_alias or n}}}"
             for n, f in self.pk_fields.model_fields.items()
+            if (f.validation_alias or n) not in exclude
         )
 
     def add_get_many_route(
@@ -479,7 +485,7 @@ class CRUDCollectionBase(ABC):
         overrides = strategy.get_overrides(self.get_resolved_overrides(strategy))
         if self.public_schema and not self.disable_get_one:
             router.add_api_route(
-                strategy.compute_id_path(self.pk_fields),
+                self.get_id_path(strategy.ancestor_names),
                 self.override_dependencies(self.get_one_handler, overrides),
                 response_model=self.public_schema,
                 generate_unique_id_function=self.generate_unique_id,
@@ -512,7 +518,7 @@ class CRUDCollectionBase(ABC):
         overrides = strategy.get_overrides(self.get_resolved_overrides(strategy))
         if self.update_schema and not self.disable_update:
             router.add_api_route(
-                strategy.compute_id_path(self.pk_fields),
+                self.get_id_path(strategy.ancestor_names),
                 self.override_dependencies(
                     self.update_one_handler, overrides,
                 ),
@@ -529,7 +535,7 @@ class CRUDCollectionBase(ABC):
         overrides = strategy.get_overrides(self.get_resolved_overrides(strategy))
         if not self.disable_delete:
             router.add_api_route(
-                strategy.compute_id_path(self.pk_fields),
+                self.get_id_path(strategy.ancestor_names),
                 self.override_dependencies(
                     self.delete_one_handler, overrides,
                 ),
@@ -572,7 +578,7 @@ class CRUDCollectionBase(ABC):
                 pk_dep=overrides[PKFieldsDependency],
                 model=self.orm_adapter.model,
             )
-            id_path = strategy.compute_id_path(self.pk_fields)
+            id_path = self.get_id_path(strategy.ancestor_names)
             for path, child, cfg in self._nested_collections:
                 prefix = id_path.rstrip("/") + "/" + path.lstrip("/")
                 router.include_router(
