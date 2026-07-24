@@ -171,8 +171,9 @@ def user_posts_app(make_adapter, forum_models):
             PKFieldsDependency: Annotated[_StubUserPK, Depends(_get_me_pk)],
         }
 
-        @property
-        def id_path(self) -> str:
+        def get_id_path(
+            self, exclude: frozenset[str] = frozenset(),  # noqa: ARG002
+        ) -> str:
             return "/me"
 
     user_me_crud = _UserMeCRUD(orm_adapter=make_adapter(forum_models.User))

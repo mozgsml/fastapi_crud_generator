@@ -76,3 +76,17 @@ async def test_me_posts_parent_not_found_when_user_missing(
         json={"slug": "asyncio", "thread_id": thread["id"]},
     )
     assert r.status_code == 404
+
+
+def test_me_routes_use_literal_segment_not_pk_param(user_posts_app) -> None:
+    """get_id_path -> "/me" pins the segment; no {user_id} placeholder.
+
+    Guards the routing itself, not just the runtime: a stub could make
+    a real /users/{user_id}/posts pass every request test above by
+    catching "me" as a throwaway param, so assert the path shape here.
+    """
+    paths = {getattr(r, "path", "") for r in user_posts_app.routes}
+
+    assert "/users/me" in paths
+    assert "/users/me/posts" in paths
+    assert not any("{user_id}" in p for p in paths)
