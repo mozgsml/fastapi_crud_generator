@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fastapi-crud-generator"
-version = "0.0.1"
+version = "0.1.0"
 description = "Generate full CRUD REST endpoints for FastAPI straight from your ORM models — filtering, sorting, pagination and nested resources, without hand-writing a single schema. Works with SQLModel, SQLAlchemy and Tortoise ORM."
 readme = "README.md"
 license = { file = "LICENSE.txt" }
