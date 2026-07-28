@@ -109,6 +109,48 @@ app.include_router(user_me_crud.get_router(prefix="/users"))
 
 *Tested by `tests/integration/test_user_posts.py`.*
 
+## Add a custom route to a collection
+
+Use `collection.extra` to hang your own routes off a generated
+collection — no `get_router` override, no manual `add_api_route`. Bare
+verbs anchor on the **single object** (mounted under `get_id_path`);
+`.collection` anchors on the **collection root**. Both accept every
+`APIRouter` keyword (`response_model=`, `dependencies=`, `status_code=`).
+
+```python
+user_me_crud = UserMeCRUD(orm_adapter=make_adapter(User))
+
+@user_me_crud.extra.post("/avatar", response_model=UserPublic)
+async def upload_avatar(
+    file: Annotated[UploadFile, File()],
+) -> User:
+    ...
+# -> POST /users/me/avatar   (item anchor: under get_id_path)
+
+@user_me_crud.extra.collection.get("/search")
+async def search_users(q: str) -> list[UserPublic]:
+    ...
+# -> GET /users/search       (collection anchor: at the root)
+```
+
+To receive the object's primary key, declare a parameter with the
+`PKFieldsDependency` marker — it is injected exactly as for `get_one`,
+**including every ancestor key when the collection is nested**, so a
+handler never spells out parent ids:
+
+```python
+@post_crud.extra.get("/whoami")
+async def whoami(pk: Annotated[BaseModel, PKFieldsDependency]) -> dict:
+    return {"id": pk.id}
+# nested -> GET /categories/{category_id}/threads/{thread_id}/posts/{post_id}/whoami
+```
+
+`extra.item` is an explicit alias for the bare form. Collection-root
+extras are matched before `/{pk}`, so a literal segment like `/search`
+is never swallowed by the get-one route.
+
+*Tested by `tests/integration/test_extra_routes.py`.*
+
 ## Return a fallback instead of 404
 
 Override `get_one_not_found` to return a value when the row is missing.

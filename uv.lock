@@ -387,7 +387,7 @@ wheels = [
 
 [[package]]
 name = "fastapi-crud-generator"
-version = "0.0.1"
+version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
