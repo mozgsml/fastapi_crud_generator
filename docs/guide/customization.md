@@ -178,6 +178,39 @@ def generate_unique_id(self, route: APIRoute) -> str
 becomes `{article_id}` in the path); override to change that naming.
 `generate_unique_id` builds the OpenAPI operationId.
 
+## Adding your own routes with `extra`
+
+When you need an endpoint the generator does not produce (`/avatar`,
+`/publish`, `/search`), register it on `collection.extra` instead of
+overriding `get_router`. `extra` is a small registrar exposing the
+FastAPI verb decorators; the routes are merged into `get_router()` with
+the same dependency wiring as the generated routes.
+
+```python
+collection.extra.get(path, **api_route_kwargs)      # item anchor
+collection.extra.post(path, ...)                    # (also put/patch/
+collection.extra.delete(path, ...)                  #  delete/api_route)
+collection.extra.item                               # alias for the above
+collection.extra.collection.get(path, ...)          # collection anchor
+```
+
+| Anchor | How to register | Where it mounts |
+| --- | --- | --- |
+| **Single object** | `extra.<verb>` (or `extra.item.<verb>`) | under `get_id_path` — `/{pk}/...`, or `/me/...` for a pinned segment |
+| **Collection root** | `extra.collection.<verb>` | at the collection root — `/...` |
+
+Both anchors reuse the strategy overrides of the CRUD routes, so a
+handler can declare `Annotated[BaseModel, PKFieldsDependency]` (and
+`Annotated[list, ParentPKFieldsDependency]`) to receive the object's key
+— **and every ancestor key when the collection is nested** — without
+naming any path param. Collection-root extras are registered before
+`/{pk}`, so a literal segment such as `/search` is not captured by the
+get-one route.
+
+Any `APIRouter` keyword (`response_model=`, `dependencies=`,
+`status_code=`, `tags=`) passes straight through. See the
+[custom-route recipe](cookbook.md#add-a-custom-route-to-a-collection).
+
 ## Replacing a dependency with `dependency_overrides`
 
 Handlers declare their inputs as marker classes from

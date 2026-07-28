@@ -49,6 +49,105 @@ def _init_list_param(
     return param if param is not None else (class_default or [])
 
 
+ExtraRouteSpec = tuple[list[str], str, Callable, dict]
+
+
+class RouteRegistrar:
+    """Collect user routes via FastAPI-style verb decorators.
+
+    Anchor-neutral: it records ``(methods, path, handler, kwargs)`` and
+    nothing more. Where the routes mount — collection root vs single
+    object — is decided later by ``get_router``, so one class backs both
+    anchors: the collection anchor uses this class directly, the item
+    anchor is the ``ExtraRoutes`` subclass below.
+    """
+
+    def __init__(self) -> None:
+        self._specs: list[ExtraRouteSpec] = []
+
+    @property
+    def specs(self) -> list[ExtraRouteSpec]:
+        """Recorded (methods, path, handler, kwargs) tuples."""
+        return self._specs
+
+    def _register(
+        self, methods: list[str], path: str, **kwargs: Any,
+    ) -> Callable[[Callable], Callable]:
+        def decorator(func: Callable) -> Callable:
+            self._specs.append((methods, path, func, kwargs))
+            return func
+        return decorator
+
+    def get(
+        self, path: str, **kwargs: Any,
+    ) -> Callable[[Callable], Callable]:
+        """Register a GET route."""
+        return self._register(["GET"], path, **kwargs)
+
+    def post(
+        self, path: str, **kwargs: Any,
+    ) -> Callable[[Callable], Callable]:
+        """Register a POST route."""
+        return self._register(["POST"], path, **kwargs)
+
+    def put(
+        self, path: str, **kwargs: Any,
+    ) -> Callable[[Callable], Callable]:
+        """Register a PUT route."""
+        return self._register(["PUT"], path, **kwargs)
+
+    def patch(
+        self, path: str, **kwargs: Any,
+    ) -> Callable[[Callable], Callable]:
+        """Register a PATCH route."""
+        return self._register(["PATCH"], path, **kwargs)
+
+    def delete(
+        self, path: str, **kwargs: Any,
+    ) -> Callable[[Callable], Callable]:
+        """Register a DELETE route."""
+        return self._register(["DELETE"], path, **kwargs)
+
+    def api_route(
+        self, path: str, *, methods: list[str], **kwargs: Any,
+    ) -> Callable[[Callable], Callable]:
+        """Register a route for an arbitrary set of methods."""
+        return self._register(methods, path, **kwargs)
+
+
+class ExtraRoutes(RouteRegistrar):
+    """A collection's user-defined routes, anchored on the object.
+
+    Inherits every verb decorator from ``RouteRegistrar`` (so bare
+    ``extra.post(...)`` records a single-object sub-route, mounted under
+    ``get_id_path`` — e.g. ``/me/avatar``). ``.item`` is an explicit
+    alias for the same registrar; ``.collection`` is a sibling registrar
+    for collection-root routes (e.g. ``/search``).
+
+    Both anchors merge into ``get_router`` with the same dependency
+    machinery as the generated CRUD routes, so a nested collection's
+    ancestor prefix and pks are injected automatically::
+
+        @c.extra.post("/avatar")            # item -> /{pk}/avatar
+        @c.extra.item.post("/avatar")       # same registrar (alias)
+        @c.extra.collection.get("/search")  # root -> /search
+    """
+
+    def __init__(self) -> None:
+        super().__init__()  # this registrar IS the item anchor
+        self._collection = RouteRegistrar()
+
+    @property
+    def item(self) -> "ExtraRoutes":
+        """Explicit alias; bare verbs already target the object."""
+        return self
+
+    @property
+    def collection(self) -> RouteRegistrar:
+        """Sibling registrar for collection-root routes."""
+        return self._collection
+
+
 class CRUDCollectionBase(ABC):
     """Base class for CRUD route collections.
 
@@ -226,6 +325,7 @@ class CRUDCollectionBase(ABC):
         self._nested_collections: list[
             tuple[str, CRUDCollectionBase]
         ] = []
+        self._extra: ExtraRoutes | None = None
 
 
     def apply_pk_aliases(
@@ -544,6 +644,46 @@ class CRUDCollectionBase(ABC):
                 dependencies=self.delete_dependencies,
             )
 
+    @property
+    def extra(self) -> ExtraRoutes:
+        """User-defined routes merged into ``get_router`` (see ExtraRoutes).
+
+        Lazily created so the class attribute footprint stays empty until
+        a route is actually registered on an instance.
+        """
+        if self._extra is None:
+            self._extra = ExtraRoutes()
+        return self._extra
+
+    def add_extra_routes(
+        self, router: APIRouter, strategy: RouterStrategy | None = None,
+    ) -> None:
+        """Mount user-defined routes: item under id_path, collection at root.
+
+        Both anchors reuse the strategy overrides of the CRUD routes, so
+        pk and nested parent-pk injection happen exactly as for get_one /
+        get_many.
+        """
+        if self._extra is None:
+            return
+        strategy = strategy or _DEFAULT_STRATEGY
+        overrides = strategy.get_overrides(
+            self.get_resolved_overrides(strategy),
+        )
+        id_path = self.get_id_path(strategy.ancestor_names).rstrip("/")
+        anchored = [
+            (id_path, spec) for spec in self._extra.specs
+        ] + [
+            ("", spec) for spec in self._extra.collection.specs
+        ]
+        for base, (methods, path, func, kwargs) in anchored:
+            router.add_api_route(
+                f"{base}/{path.lstrip('/')}",
+                self.override_dependencies(func, overrides),
+                methods=methods,
+                **kwargs,
+            )
+
     def add_nested_collection(
         self,
         path: str,
@@ -566,6 +706,11 @@ class CRUDCollectionBase(ABC):
         effective_kwargs = {**self.router_kwargs, **router_kwargs}
         router = APIRouter(**effective_kwargs)
 
+        # Extra routes first: a collection-root extra (e.g. /search) sits
+        # at the same level as get_one's /{pk}, so it must be matched
+        # before /{pk} captures its segment. Item extras (/{pk}/sub) never
+        # collide, so registering them early is harmless.
+        self.add_extra_routes(router, strategy)
         self.add_get_many_route(router, strategy)
         self.add_get_one_route(router, strategy)
         self.add_create_one_route(router, strategy)
