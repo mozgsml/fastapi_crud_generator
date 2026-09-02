@@ -131,6 +131,13 @@ class ExtraRoutes(RouteRegistrar):
         @c.extra.post("/avatar")            # item -> /{pk}/avatar
         @c.extra.item.post("/avatar")       # same registrar (alias)
         @c.extra.collection.get("/search")  # root -> /search
+        @c.extra.patch("")                  # item -> /{pk} itself
+        @c.extra.collection.post("")        # root -> the collection
+
+    An empty path targets the anchor itself, which is how a hand-written
+    handler replaces a generated one: extras are mounted before the CRUD
+    routes, so it wins the match (disable the generated route too, or it
+    keeps its place in the schema).
     """
 
     def __init__(self) -> None:
@@ -677,8 +684,13 @@ class CRUDCollectionBase(ABC):
             ("", spec) for spec in self._extra.collection.specs
         ]
         for base, (methods, path, func, kwargs) in anchored:
+            # An empty path means the anchor itself — the object for an
+            # item extra, the collection root for a collection one. It
+            # must not gain a trailing slash, or the route sits at an
+            # address no client asks for.
+            suffix = path.strip("/")
             router.add_api_route(
-                f"{base}/{path.lstrip('/')}",
+                f"{base}/{suffix}" if suffix else base,
                 self.override_dependencies(func, overrides),
                 methods=methods,
                 **kwargs,

@@ -199,6 +199,21 @@ collection.extra.collection.get(path, ...)          # collection anchor
 | **Single object** | `extra.<verb>` (or `extra.item.<verb>`) | under `get_id_path` — `/{pk}/...`, or `/me/...` for a pinned segment |
 | **Collection root** | `extra.collection.<verb>` | at the collection root — `/...` |
 
+An **empty path targets the anchor itself**: `extra.patch("")` serves
+`/{pk}`, `extra.collection.post("")` serves the collection root. That is
+how a hand-written handler takes over from a generated one when the body
+needs processing the generator cannot express — file uploads, say:
+
+```python
+collection = ClubCRUD(disable_update=True)   # drop the generated PATCH
+
+@collection.extra.patch("", response_model=Club)
+async def edit(...): ...
+```
+
+Disabling the generated route matters: extras are mounted first and win
+the match, but the generated one would still show up in the schema.
+
 Both anchors reuse the strategy overrides of the CRUD routes, so a
 handler can declare `Annotated[BaseModel, PKFieldsDependency]` (and
 `Annotated[list, ParentPKFieldsDependency]`) to receive the object's key

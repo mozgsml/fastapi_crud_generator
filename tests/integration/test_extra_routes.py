@@ -21,6 +21,16 @@ from fastapi_crud_generator import CRUDCollection
 from fastapi_crud_generator.deps import PKFieldsDependency
 
 
+def _methods(app: FastAPI, path: str) -> set[str]:
+    """Every HTTP method served at one exact path."""
+    return {
+        method
+        for route in app.routes
+        if getattr(route, "path", None) == path
+        for method in getattr(route, "methods", set())
+    }
+
+
 @pytest.fixture
 def extra_app(make_adapter, forum_models):
     """Category (top level) + Post nested two deep, each with extras."""
@@ -43,6 +53,16 @@ def extra_app(make_adapter, forum_models):
     @category_crud.extra.collection.get("/ping")
     async def category_ping() -> dict:
         return {"pong": True}
+
+    @category_crud.extra.patch("")
+    async def category_touch(
+        pk: Annotated[BaseModel, PKFieldsDependency],
+    ) -> dict:
+        return {"touched": pk.id}
+
+    @category_crud.extra.collection.put("")
+    async def category_replace_all() -> dict:
+        return {"replaced": True}
 
     @post_crud.extra.get("/whoami")
     async def post_whoami(
@@ -72,6 +92,12 @@ def test_extra_routes_mounted_at_expected_paths(extra_app) -> None:
     assert "/categories/{category_id}/whoami" in paths
     # collection anchor, top level -> at the collection root
     assert "/categories/ping" in paths
+    # empty path -> the anchor itself, with no trailing slash. The
+    # generated CRUD holds those same two paths, so look at the verbs
+    # the extras registered rather than at the paths alone.
+    assert "PATCH" in _methods(extra_app, "/categories/{category_id}")
+    assert "PUT" in _methods(extra_app, "/categories")
+    assert "/categories/{category_id}/" not in paths
     # item anchor, nested -> full ancestor prefix, no manual keys
     assert (
         "/categories/{category_id}/threads/{thread_id}"
@@ -142,3 +168,27 @@ def test_item_alias_targets_the_same_registrar(
     assert crud.extra.item is crud.extra
     assert [path for _, path, *_ in crud.extra.specs] == ["/a", "/b"]
     assert crud.extra.collection.specs == []
+
+
+async def test_item_extra_with_empty_path_serves_the_object(
+    extra_client,
+) -> None:
+    """An empty path targets the object itself — /{pk}, no trailing slash."""
+    cat = (
+        await extra_client.post("/categories", json={"name": "Py"})
+    ).json()
+
+    r = await extra_client.patch(f"/categories/{cat['id']}")
+
+    assert r.status_code == 200
+    assert r.json() == {"touched": cat["id"]}
+
+
+async def test_collection_extra_with_empty_path_serves_the_root(
+    extra_client,
+) -> None:
+    """The collection anchor's empty path is the collection root."""
+    r = await extra_client.put("/categories")
+
+    assert r.status_code == 200
+    assert r.json() == {"replaced": True}
