@@ -1,0 +1,1600 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="CRUD route generator for FastAPI">
+      
+      
+      
+      
+        <link rel="prev" href="../dependencies/">
+      
+      
+        <link rel="next" href="../cookbook/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Customization - fastapi-crud-generator</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#customization" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="fastapi-crud-generator" class="md-header__button md-logo" aria-label="fastapi-crud-generator" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            fastapi-crud-generator
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Customization
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mozgsml/fastapi_crud_generator" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mozgsml/fastapi_crud_generator
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../getting-started/" class="md-tabs__link">
+          
+  
+  
+  Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../custom-adapter/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Custom Adapter
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../api-reference/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  API Reference
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="fastapi-crud-generator" class="md-nav__button md-logo" aria-label="fastapi-crud-generator" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    fastapi-crud-generator
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mozgsml/fastapi_crud_generator" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mozgsml/fastapi_crud_generator
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../orm-adapters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ORM Adapters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../schema-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schema Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../filtering-sorting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Filtering & Sorting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pagination/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pagination
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../nested-resources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nested Resources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dependencies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dependencies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Customization
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Customization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#two-ways-to-configure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two ways to configure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#options-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Options reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Options reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#adapter-primary-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adapter &amp; primary key
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schemas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schemas
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#field-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Field selection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#disabling-endpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Disabling endpoints
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Other
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#overridable-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overridable methods
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Overridable methods">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get_id_path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_id_path
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get_one_not_found" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_one_not_found
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#route-handlers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Route handlers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#apply_pk_aliases-and-generate_unique_id" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        apply_pk_aliases and generate_unique_id
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adding-your-own-routes-with-extra" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding your own routes with extra
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#replacing-a-dependency-with-dependency_overrides" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Replacing a dependency with dependency_overrides
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbook/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cookbook
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../custom-adapter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom Adapter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#two-ways-to-configure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two ways to configure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#options-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Options reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Options reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#adapter-primary-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adapter &amp; primary key
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schemas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schemas
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#field-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Field selection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#disabling-endpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Disabling endpoints
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Other
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#overridable-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overridable methods
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Overridable methods">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get_id_path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_id_path
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get_one_not_found" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_one_not_found
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#route-handlers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Route handlers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#apply_pk_aliases-and-generate_unique_id" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        apply_pk_aliases and generate_unique_id
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adding-your-own-routes-with-extra" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding your own routes with extra
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#replacing-a-dependency-with-dependency_overrides" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Replacing a dependency with dependency_overrides
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="customization">Customization</h1>
+<p>Every collection is configured in one of two interchangeable ways, and
+its behaviour is tuned by overriding methods on a subclass. This page is
+the reference for both. For task-oriented, copy-paste examples see the
+<a href="../cookbook/">Cookbook</a> — every recipe there is backed by a test.</p>
+<h2 id="two-ways-to-configure">Two ways to configure</h2>
+<p>A setting can be passed to the constructor or declared as a class
+attribute. They are equivalent; the constructor argument wins when both
+are given.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># constructor</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">crud</span> <span class="o">=</span> <span class="n">CRUDCollection</span><span class="p">(</span><span class="n">orm_adapter</span><span class="o">=</span><span class="n">adapter</span><span class="p">,</span> <span class="n">disable_delete</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># class attribute — handy when several collections share config</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">ArticleCRUD</span><span class="p">(</span><span class="n">CRUDCollection</span><span class="p">):</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">orm_adapter</span> <span class="o">=</span> <span class="n">adapter</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">disable_delete</span> <span class="o">=</span> <span class="kc">True</span>
+</code></pre></div>
+<p>Class attributes compose through normal inheritance:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">AuthenticatedCRUD</span><span class="p">(</span><span class="n">CRUDCollection</span><span class="p">):</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="n">dependencies</span> <span class="o">=</span> <span class="p">[</span><span class="n">Depends</span><span class="p">(</span><span class="n">require_auth</span><span class="p">)]</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="k">class</span><span class="w"> </span><span class="nc">ArticleCRUD</span><span class="p">(</span><span class="n">AuthenticatedCRUD</span><span class="p">):</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">orm_adapter</span> <span class="o">=</span> <span class="n">SQLModelAdapter</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">Article</span><span class="p">,</span> <span class="n">get_session</span><span class="o">=</span><span class="n">get_session</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="options-reference">Options reference</h2>
+<h3 id="adapter-primary-key">Adapter &amp; primary key</h3>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Type</th>
+<th>Default</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>orm_adapter</code></td>
+<td><code>ORMAdapterBase</code></td>
+<td>— (required)</td>
+<td>The ORM adapter all data access goes through.</td>
+</tr>
+<tr>
+<td><code>pk_fields</code></td>
+<td><code>type[BaseModel]</code></td>
+<td>derived from adapter</td>
+<td>Model of primary-key fields; drives the <code>/{...}</code> path params.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="schemas">Schemas</h3>
+<p>Leave these unset to have them generated from the model; set one to take
+full control of that shape.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Type</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>public_schema</code></td>
+<td><code>BaseModel</code></td>
+<td><code>adapter.generate_public_schema(...)</code></td>
+</tr>
+<tr>
+<td><code>public_list_schema</code></td>
+<td><code>BaseModel</code></td>
+<td><code>PaginatorPage[public_schema]</code></td>
+</tr>
+<tr>
+<td><code>create_schema</code></td>
+<td><code>BaseModel</code></td>
+<td>generated (lazily, see note)</td>
+</tr>
+<tr>
+<td><code>update_schema</code></td>
+<td><code>BaseModel</code></td>
+<td>generated, all fields optional</td>
+</tr>
+<tr>
+<td><code>filter_schema</code></td>
+<td><code>BaseModel</code></td>
+<td>one optional query field per scalar</td>
+</tr>
+<tr>
+<td><code>sort_schema</code></td>
+<td><code>BaseModel</code></td>
+<td><code>?sort=field:asc\|desc</code> values</td>
+</tr>
+<tr>
+<td><code>include_schema</code></td>
+<td><code>BaseModel</code></td>
+<td>one entry per relation</td>
+</tr>
+<tr>
+<td><code>create_out_schema</code> / <code>update_out_schema</code></td>
+<td>any</td>
+<td><code>response_model</code> for POST / PATCH</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title"><code>create_schema</code> is resolved lazily</p>
+<p>Unlike the others, the create schema is finalised when the router is
+built, because a nested collection's strategy may drop the parent's
+foreign key from it. <code>self.create_schema</code> is therefore <code>None</code> on the
+instance — don't construct it directly inside a hook.</p>
+</div>
+<h3 id="field-selection">Field selection</h3>
+<p>Instead of writing a whole schema, restrict which model fields feed the
+generated ones:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Applies to</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>base_fields</code></td>
+<td>fallback for all generated schemas</td>
+</tr>
+<tr>
+<td><code>public_fields</code></td>
+<td>the public (GET) schema</td>
+</tr>
+<tr>
+<td><code>create_fields</code></td>
+<td>the create (POST) schema</td>
+</tr>
+<tr>
+<td><code>update_fields</code></td>
+<td>the update (PATCH) schema</td>
+</tr>
+</tbody>
+</table>
+<p>The same sets can live on the model itself as a <code>crud_config</code> — see
+<a href="../schema-generation/">Schema Generation</a>.</p>
+<h3 id="disabling-endpoints">Disabling endpoints</h3>
+<p>Each flag drops one route. <code>None</code> (the constructor default) means
+"inherit the class attribute"; <code>True</code>/<code>False</code> set it outright.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Removes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>disable_get_many</code></td>
+<td><code>GET /</code></td>
+</tr>
+<tr>
+<td><code>disable_get_one</code></td>
+<td><code>GET /{pk}</code></td>
+</tr>
+<tr>
+<td><code>disable_create</code></td>
+<td><code>POST /</code></td>
+</tr>
+<tr>
+<td><code>disable_update</code></td>
+<td><code>PATCH /{pk}</code></td>
+</tr>
+<tr>
+<td><code>disable_delete</code></td>
+<td><code>DELETE /{pk}</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="dependencies">Dependencies</h3>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Scope</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dependencies</code></td>
+<td>all routes of the collection</td>
+</tr>
+<tr>
+<td><code>get_one_dependencies</code></td>
+<td><code>GET /{pk}</code> only</td>
+</tr>
+<tr>
+<td><code>get_many_dependencies</code></td>
+<td><code>GET /</code> only</td>
+</tr>
+<tr>
+<td><code>create_dependencies</code></td>
+<td><code>POST /</code> only</td>
+</tr>
+<tr>
+<td><code>update_dependencies</code></td>
+<td><code>PATCH /{pk}</code> only</td>
+</tr>
+<tr>
+<td><code>delete_dependencies</code></td>
+<td><code>DELETE /{pk}</code> only</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">Pass collection-wide deps via <code>dependencies</code>, not <code>router_kwargs</code></p>
+<p>A <code>dependencies=</code> value smuggled through <code>**router_kwargs</code> is
+overwritten by <code>self.dependencies</code> when the router is built. Use the
+<code>dependencies</code> option.</p>
+</div>
+<h3 id="other">Other</h3>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dependency_overrides</code></td>
+<td><code>dict[type, ...]</code></td>
+<td>Replace a dependency marker (see below).</td>
+</tr>
+<tr>
+<td><code>**router_kwargs</code></td>
+<td>—</td>
+<td>Forwarded to <code>APIRouter(**...)</code> (tags, prefix, etc.).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="overridable-methods">Overridable methods</h2>
+<p>Subclass <code>CRUDCollection</code> and override what you need. Signatures below
+are exact — match them.</p>
+<h3 id="get_id_path"><code>get_id_path</code></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_id_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exclude</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">())</span> <span class="o">-&gt;</span> <span class="nb">str</span>
+</code></pre></div>
+<p>Returns the single-object path segment (default <code>/{article_id}</code>, built
+from <code>pk_fields</code>). <code>exclude</code> drops params an ancestor already placed in
+the path. Override it to pin a fixed segment for a token-scoped
+singleton whose identity comes from auth rather than the URL:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">UserMeCRUD</span><span class="p">(</span><span class="n">CRUDCollection</span><span class="p">):</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_id_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exclude</span><span class="o">=</span><span class="nb">frozenset</span><span class="p">())</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>        <span class="k">return</span> <span class="s2">&quot;/me&quot;</span>
+</code></pre></div>
+<p>See the <a href="../cookbook/#a-me-singleton-collection"><code>/users/me</code> recipe</a>.</p>
+<h3 id="get_one_not_found"><code>get_one_not_found</code></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_one_not_found</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pk_values</span><span class="p">,</span> <span class="n">include_data</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">object</span>
+</code></pre></div>
+<p>Called by <code>GET /{pk}</code> when the row is missing; the default raises
+<code>HTTPException(404)</code>. This is the only formal not-found hook — for
+create/update/delete the 404 is raised inside the handler itself.
+Override it to return a fallback, or to create-on-first-access.</p>
+<h3 id="route-handlers">Route handlers</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_one_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pk_field_values</span><span class="p">,</span> <span class="n">include_data</span><span class="p">,</span> <span class="n">parent_refs</span><span class="p">)</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_many_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">paginator</span><span class="p">,</span> <span class="n">filter_data</span><span class="p">,</span> <span class="n">sort_data</span><span class="p">,</span> <span class="n">include_data</span><span class="p">,</span> <span class="n">parent_refs</span><span class="p">)</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">create_one_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">create_data</span><span class="p">,</span> <span class="n">parent_refs</span><span class="p">)</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">update_one_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pk_field_values</span><span class="p">,</span> <span class="n">update_data</span><span class="p">,</span> <span class="n">parent_refs</span><span class="p">)</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">delete_one_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pk_field_values</span><span class="p">,</span> <span class="n">parent_refs</span><span class="p">)</span>
+</code></pre></div>
+<p>Override a handler to pre- or post-process around the adapter call.</p>
+<div class="admonition danger">
+<p class="admonition-title">Keep the marker annotations</p>
+<p>Each handler parameter is annotated <code>Annotated[..., XDependency]</code>.
+Those markers are what the router rewrites into real request params.
+An override with plain, unannotated parameters makes them leak into
+the query string and the request fails with 422. Copy the annotations
+verbatim — see the <a href="../cookbook/#pre-process-input-in-a-handler">handler recipe</a>.</p>
+</div>
+<h3 id="apply_pk_aliases-and-generate_unique_id"><code>apply_pk_aliases</code> and <code>generate_unique_id</code></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">apply_pk_aliases</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pk_schema</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">BaseModel</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">type</span><span class="p">[</span><span class="n">BaseModel</span><span class="p">]</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">def</span><span class="w"> </span><span class="nf">generate_unique_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">route</span><span class="p">:</span> <span class="n">APIRoute</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
+</code></pre></div>
+<p><code>apply_pk_aliases</code> adds the <code>{model}_id</code> alias to bare PK fields (so <code>id</code>
+becomes <code>{article_id}</code> in the path); override to change that naming.
+<code>generate_unique_id</code> builds the OpenAPI operationId.</p>
+<h2 id="adding-your-own-routes-with-extra">Adding your own routes with <code>extra</code></h2>
+<p>When you need an endpoint the generator does not produce (<code>/avatar</code>,
+<code>/publish</code>, <code>/search</code>), register it on <code>collection.extra</code> instead of
+overriding <code>get_router</code>. <code>extra</code> is a small registrar exposing the
+FastAPI verb decorators; the routes are merged into <code>get_router()</code> with
+the same dependency wiring as the generated routes.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">collection</span><span class="o">.</span><span class="n">extra</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="o">**</span><span class="n">api_route_kwargs</span><span class="p">)</span>      <span class="c1"># item anchor</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">collection</span><span class="o">.</span><span class="n">extra</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>                    <span class="c1"># (also put/patch/</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">collection</span><span class="o">.</span><span class="n">extra</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>                  <span class="c1">#  delete/api_route)</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="n">collection</span><span class="o">.</span><span class="n">extra</span><span class="o">.</span><span class="n">item</span>                               <span class="c1"># alias for the above</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="n">collection</span><span class="o">.</span><span class="n">extra</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>          <span class="c1"># collection anchor</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Anchor</th>
+<th>How to register</th>
+<th>Where it mounts</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Single object</strong></td>
+<td><code>extra.&lt;verb&gt;</code> (or <code>extra.item.&lt;verb&gt;</code>)</td>
+<td>under <code>get_id_path</code> — <code>/{pk}/...</code>, or <code>/me/...</code> for a pinned segment</td>
+</tr>
+<tr>
+<td><strong>Collection root</strong></td>
+<td><code>extra.collection.&lt;verb&gt;</code></td>
+<td>at the collection root — <code>/...</code></td>
+</tr>
+</tbody>
+</table>
+<p>An <strong>empty path targets the anchor itself</strong>: <code>extra.patch("")</code> serves
+<code>/{pk}</code>, <code>extra.collection.post("")</code> serves the collection root. That is
+how a hand-written handler takes over from a generated one when the body
+needs processing the generator cannot express — file uploads, say:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">collection</span> <span class="o">=</span> <span class="n">ClubCRUD</span><span class="p">(</span><span class="n">disable_update</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>   <span class="c1"># drop the generated PATCH</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="nd">@collection</span><span class="o">.</span><span class="n">extra</span><span class="o">.</span><span class="n">patch</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">response_model</span><span class="o">=</span><span class="n">Club</span><span class="p">)</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">edit</span><span class="p">(</span><span class="o">...</span><span class="p">):</span> <span class="o">...</span>
+</code></pre></div>
+<p>Disabling the generated route matters: extras are mounted first and win
+the match, but the generated one would still show up in the schema.</p>
+<p>Both anchors reuse the strategy overrides of the CRUD routes, so a
+handler can declare <code>Annotated[BaseModel, PKFieldsDependency]</code> (and
+<code>Annotated[list, ParentPKFieldsDependency]</code>) to receive the object's key
+— <strong>and every ancestor key when the collection is nested</strong> — without
+naming any path param. Collection-root extras are registered before
+<code>/{pk}</code>, so a literal segment such as <code>/search</code> is not captured by the
+get-one route.</p>
+<p>Any <code>APIRouter</code> keyword (<code>response_model=</code>, <code>dependencies=</code>,
+<code>status_code=</code>, <code>tags=</code>) passes straight through. See the
+<a href="../cookbook/#add-a-custom-route-to-a-collection">custom-route recipe</a>.</p>
+<h2 id="replacing-a-dependency-with-dependency_overrides">Replacing a dependency with <code>dependency_overrides</code></h2>
+<p>Handlers declare their inputs as marker classes from
+<code>fastapi_crud_generator.deps</code> (e.g. <code>PKFieldsDependency</code>,
+<code>CreateSchemaDependency</code>). <code>dependency_overrides</code> swaps the
+implementation behind a marker — the key is the marker class, the value
+is either a <code>ReplaceSignatureDependency</code> or a raw annotation (which is
+wrapped automatically).</p>
+<p>The canonical use is replacing the primary key with a value from auth,
+so <code>/{pk}</code> becomes token-scoped:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">UserMeCRUD</span><span class="p">(</span><span class="n">CRUDCollection</span><span class="p">):</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>    <span class="n">dependency_overrides</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>        <span class="n">PKFieldsDependency</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">UserPK</span><span class="p">,</span> <span class="n">Depends</span><span class="p">(</span><span class="n">get_current_user</span><span class="p">)],</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="p">}</span>
+</code></pre></div>
+<p>Markers you can override: <code>CreateSchemaDependency</code>,
+<code>UpdateSchemaDependency</code>, <code>PublicSchemaDependency</code>,
+<code>PublicListSchemaDependency</code>, <code>FilterSchemaDependency</code>,
+<code>SortSchemaDependency</code>, <code>IncludeSchemaDependency</code>, <code>PKFieldsDependency</code>,
+<code>PaginatorDependency</code>, <code>ParentPKFieldsDependency</code>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "content.code.copy", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
